@@ -70,3 +70,9 @@ understanding of the full tree.
   default Electron one (branding later). One packaging bug was fixed along the
   way: `electron-updater` is CJS, so the ESM main must default-import it
   (named imports fail inside the asar).
+- 2026-08-17 code-review fix (commit 7d7c288): update behaviour aligned to the
+  letter of this ticket — the AppImage checks automatically on startup, the
+  `.deb` build does **not** auto-check; instead the Settings → Configuration
+  section shows a manual "Check for updates" button when the feed is
+  configured (bridge: `updates:check`; `settings:state` reports
+  `updateCheckAvailable`). Tray stays Open/Quit per the map.

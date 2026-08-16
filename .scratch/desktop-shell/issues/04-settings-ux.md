@@ -36,6 +36,15 @@ Electron could also edit the file directly from the main process.
   notice). 26 tests in `packages/host/test/config-write.test.ts`; exported
   from `@deep-agent/host`. Next: preload bridge + main-process restart
   wiring + Settings modal form.
+- 2026-08-17 code-review fixes (commit 7d7c288): `settings:apply` now merges
+  into `configFileBase(configPath())` — the file merged over defaults with
+  **no env** — so a save can never bake `DEEP_AGENT_*` values (especially the
+  API key) into the file; `isFirstRun` became `needsProviderSetup()` and no
+  longer false-positives for the keyless `mock` provider; the desktop now
+  owns the port for its lifetime (first launch's port is passed as an
+  override on settings restarts); `providerEnvOverrides` returns the env var
+  names directly so the GUI needs no label mapping. 3 new tests for
+  `configFileBase`.
 
 ## Answer
 

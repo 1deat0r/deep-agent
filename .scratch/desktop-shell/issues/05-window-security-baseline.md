@@ -60,3 +60,8 @@ Electron 43's GPU path is incompatible with Wayland+Vulkan here.
   `packages/host/src/server.ts`), covered by an HTTP test asserting the exact
   policy from this ticket. Verified headlessly under xvfb: the built GUI loads
   with the CSP header present.
+- 2026-08-17 code-review fix (commit 7d7c288): the navigation pin was a raw
+  string prefix (`url.startsWith(baseUrl)`) and could be bypassed by
+  `http://127.0.0.1:3824@evil.com`; it now compares parsed origins. The
+  ozone-platform=x11 forcing also gained `ELECTRON_OZONE_PLATFORM_HINT=x11`
+  so Chromium can't prefer Wayland when both display variables exist.
