@@ -18,7 +18,12 @@ lifecycle, settings UX, packaging) without further discovery.
 
 ## Decisions so far
 
-<!-- filled as tickets resolve -->
+- **01 — Shell technology: Electron.** The desktop app is a thin window over the
+  existing TypeScript/Node `HostServer`; Electron's main process (Node.js) embeds
+  that host in-process with no sidecar/Rust boundary, and the machine already has
+  Node v26.7.0 (Tauri would add Rust + a missing `libayatana-appindicator3` for
+  the tray). Tauri's bundle-size win is a non-goal for a self-hosted local tool.
+  → `research/01-shell-technology.md`.
 
 ## Not yet specified
 
