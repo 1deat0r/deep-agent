@@ -15,7 +15,7 @@ import {
   providerEnvOverrides,
   writeConfigFile,
 } from '@deep-agent/host';
-import type { Host, HostConfig } from '@deep-agent/host';
+import type { Host, HostConfig, ProviderSettingsMerge } from '@deep-agent/host';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -198,7 +198,7 @@ if (!app.requestSingleInstanceLock()) {
 
   ipcMain.handle('settings:apply', async (event, rawSettings: unknown) => {
     if (!host) return { ok: false, message: 'host not running' };
-    let merged;
+    let merged: ProviderSettingsMerge;
     try {
       // Merge into what the FILE yields (no env): env overrides sit above the
       // file and must never be baked into it (ticket 04).

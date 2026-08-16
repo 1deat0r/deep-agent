@@ -68,7 +68,7 @@ export function mergeProviderSettings(config: HostConfig, input: unknown): Provi
   const next = structuredClone(config);
   const provider = next.provider;
   if (id !== undefined) provider.id = id as 'openai-compatible' | 'mock';
-  if (model !== undefined) provider.model = model as string;
+  if (model !== undefined) provider.model = model;
   if (apiKey !== undefined) {
     if (apiKey === '') delete provider.apiKey;
     else provider.apiKey = apiKey;
