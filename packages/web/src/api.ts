@@ -45,6 +45,10 @@ export function getConfig(): Promise<AppConfig> {
   return apiFetch<AppConfig>('/api/config');
 }
 
+export function getModels(): Promise<{ models: string[]; default: string }> {
+  return apiFetch<{ models: string[]; default: string }>('/api/models');
+}
+
 export function getSkills(): Promise<{ dir: string; skills: SkillInfo[] }> {
   return apiFetch<{ dir: string; skills: SkillInfo[] }>('/api/skills');
 }
@@ -56,6 +60,7 @@ export function getSessions(): Promise<{ sessions: SessionMeta[] }> {
 export interface CreateSessionInput {
   title?: string;
   goal?: string;
+  model?: string;
 }
 
 export function createSession(input: CreateSessionInput): Promise<{ meta: SessionMeta }> {

@@ -7,6 +7,10 @@ import type { ChatMessage, LlmChunk, LlmClient, LlmRequestOptions, ToolDef } fro
 export class EchoLlmClient implements LlmClient {
   readonly id = 'mock';
 
+  async listModels(): Promise<string[]> {
+    return ['mock-model'];
+  }
+
   async *streamChat(
     messages: ChatMessage[],
     _tools?: ToolDef[],

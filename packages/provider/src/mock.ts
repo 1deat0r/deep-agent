@@ -35,6 +35,11 @@ export class MockLlmClient implements LlmClient {
     return this;
   }
 
+  /** Model ids the endpoint exposes. */
+  async listModels(): Promise<string[]> {
+    return ['mock-model'];
+  }
+
   async *streamChat(
     messages: ChatMessage[],
     tools?: ToolDef[],

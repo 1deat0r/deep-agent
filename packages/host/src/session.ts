@@ -23,8 +23,8 @@ export interface SessionDeps {
   events: EventBus;
   config: HostConfig;
   skills: SkillsRegistry;
-  /** Client factory, given the session role (root or child). */
-  createClient: (ctx: { role: SessionRole }) => LlmClient;
+  /** Client factory, given the session role (root or child) and model. */
+  createClient: (ctx: { role: SessionRole; model: string }) => LlmClient;
   host: SessionHost;
 }
 
@@ -125,6 +125,7 @@ export class AgentSession {
       depth: number | undefined;
       goal: string | null | undefined;
       autoContinue: boolean | undefined;
+      model: string | undefined;
     },
   ): Promise<AgentSession> {
     const now = new Date().toISOString();
@@ -134,7 +135,7 @@ export class AgentSession {
       role: options.role ?? 'root',
       parentId: options.parentId ?? null,
       depth: options.depth ?? 0,
-      model: deps.config.provider.model,
+      model: options.model ?? deps.config.provider.model,
       status: 'idle',
       createdAt: now,
       updatedAt: now,
@@ -232,7 +233,7 @@ export class AgentSession {
     this.setStatus('running');
     this.deps.events.emit({ type: 'turn_start', sessionId: this.id, turnId });
     this.abort = new AbortController();
-    const client = this.deps.createClient({ role: this.meta.role });
+    const client = this.deps.createClient({ role: this.meta.role, model: this.meta.model });
 
     let finalText = '';
     try {

@@ -17,7 +17,7 @@ export interface Host {
   skills: SkillsRegistry;
 }
 
-export function buildClient(config: Host['config']): LlmClient {
+export function buildClient(config: Host['config'], model?: string): LlmClient {
   if (config.provider.id === 'mock') return new EchoLlmClient();
   const apiKey = config.provider.apiKey ?? process.env.DEEP_AGENT_API_KEY;
   if (!apiKey) {
@@ -28,7 +28,7 @@ export function buildClient(config: Host['config']): LlmClient {
   return new OpenAICompatibleClient({
     baseUrl: config.provider.baseUrl ?? 'https://api.deepseek.com',
     apiKey,
-    model: config.provider.model,
+    model: model ?? config.provider.model,
     temperature: config.provider.temperature ?? 0.3,
     maxTokens: config.provider.maxTokens,
     defaultHeaders: undefined,
@@ -39,14 +39,16 @@ export function createHost(
   config = loadConfig(),
   clientFactory?: (
     config: Host['config'],
-    ctx: { role: 'root' | 'child' },
+    ctx: { role: 'root' | 'child'; model: string },
   ) => LlmClient,
 ): Host {
   const events = new EventBus();
   const store = new SessionStore(sessionsRoot(config));
   let client: LlmClient;
   try {
-    client = clientFactory ? clientFactory(config, { role: 'root' }) : buildClient(config);
+    client = clientFactory
+      ? clientFactory(config, { role: 'root', model: config.provider.model })
+      : buildClient(config);
   } catch (error) {
     if (config.provider.id === 'openai-compatible' && !config.provider.apiKey) {
       // Degrade to mock so the harness still boots and the GUI can guide setup.
@@ -65,7 +67,7 @@ export function createHost(
     console.log(`[deep-agent] seeded ${seeded.length} bundled skills into ${skills.dir}`);
   }
   const manager = new AgentManager(store, events, config, skills, (ctx) =>
-    clientFactory ? clientFactory(config, ctx) : client,
+    clientFactory ? clientFactory(config, ctx) : buildClient(config, ctx.model),
   );
   manager.loadAll();
   const server = new HostServer({ config, manager });

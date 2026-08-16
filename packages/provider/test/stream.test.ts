@@ -98,6 +98,32 @@ describe('OpenAICompatibleClient', () => {
     }
   });
 
+  it('lists models from the /models endpoint', async () => {
+    const server2 = createServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          data: [
+            { id: 'deepseek-v4-flash' },
+            { id: 'deepseek-v4-pro' },
+            { id: 42 },
+          ],
+        }),
+      );
+    });
+    await new Promise<void>((resolve) => server2.listen(0, resolve));
+    const url = `http://127.0.0.1:${(server2.address() as AddressInfo).port}/v1`;
+    try {
+      const client = new OpenAICompatibleClient({ baseUrl: url, model: 'm' });
+      await expect(client.listModels()).resolves.toEqual([
+        'deepseek-v4-flash',
+        'deepseek-v4-pro',
+      ]);
+    } finally {
+      server2.close();
+    }
+  });
+
   it('synthesizes done when a provider omits the stop chunk', async () => {
     const server2 = sseServer(() => [
       `data: ${JSON.stringify({ choices: [{ delta: { content: 'bare' } }] })}\n\n`,

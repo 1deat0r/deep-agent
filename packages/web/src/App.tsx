@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   continueSession,
   createSession,
+  getModels,
   deleteSession,
   eventsUrl,
   getConfig,
@@ -135,6 +136,7 @@ type Tab = 'chat' | 'console';
 
 export function App(): JSX.Element {
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [models, setModels] = useState<string[]>([]);
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -181,6 +183,8 @@ export function App(): JSX.Element {
   const loadConfig = useCallback(async (): Promise<void> => {
     try {
       setConfig(await getConfig());
+      const modelsInfo = await getModels();
+      setModels(modelsInfo.models);
     } catch (err) {
       pushToast('error', err instanceof Error ? err.message : String(err));
     }
@@ -319,7 +323,7 @@ export function App(): JSX.Element {
   // -- actions -------------------------------------------------------------
 
   const handleCreate = useCallback(
-    async (input: { title?: string; goal?: string }): Promise<void> => {
+    async (input: { title?: string; goal?: string; model?: string }): Promise<void> => {
       try {
         const { meta } = await createSession(input);
         setSessions((prev) => [meta, ...prev]);
@@ -408,6 +412,8 @@ export function App(): JSX.Element {
         selectedId={selectedId}
         refreshing={refreshing}
         onSelect={setSelectedId}
+        models={models}
+        defaultModel={config?.provider.model ?? ''}
         onCreate={handleCreate}
         onRefresh={() => void loadSessions()}
       />

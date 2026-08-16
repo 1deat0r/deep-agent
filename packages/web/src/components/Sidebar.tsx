@@ -7,16 +7,20 @@ export interface SidebarProps {
   sessions: SessionMeta[];
   selectedId: string | null;
   refreshing: boolean;
+  models: string[];
+  defaultModel: string;
   onSelect: (id: string) => void;
-  onCreate: (input: { title?: string; goal?: string }) => Promise<void>;
+  onCreate: (input: { title?: string; goal?: string; model?: string }) => Promise<void>;
   onRefresh: () => void;
 }
 
 export function Sidebar(props: SidebarProps): JSX.Element {
-  const { sessions, selectedId, refreshing, onSelect, onCreate, onRefresh } = props;
+  const { sessions, selectedId, refreshing, models, defaultModel, onSelect, onCreate, onRefresh } =
+    props;
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [goal, setGoal] = useState('');
+  const [model, setModel] = useState(defaultModel);
   const [submitting, setSubmitting] = useState(false);
 
   // The server's manager.list() is not sorted by recency; enforce it here.
@@ -30,6 +34,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
       await onCreate({
         ...(trimmedTitle !== '' ? { title: trimmedTitle } : {}),
         ...(trimmedGoal !== '' ? { goal: trimmedGoal } : {}),
+        ...(model.trim() !== '' ? { model: model.trim() } : {}),
       });
       setFormOpen(false);
       setTitle('');
@@ -82,6 +87,20 @@ export function Sidebar(props: SidebarProps): JSX.Element {
             rows={2}
             onChange={(e) => setGoal(e.target.value)}
           />
+          {models.length > 0 && (
+            <select
+              className="input sidebar__form-model"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              title="Model for this session"
+            >
+              {models.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="sidebar__form-actions">
             <button type="button" className="btn btn--ghost" onClick={() => setFormOpen(false)}>
               Cancel

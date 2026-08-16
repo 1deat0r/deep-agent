@@ -29,6 +29,14 @@ function chatCompletionsUrl(baseUrl: string): string {
   return `${trimmed}/v1/chat/completions`;
 }
 
+function modelsUrl(baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/+$/, '');
+  if (/\/models$/.test(trimmed)) return trimmed;
+  if (/\/chat\/completions$/.test(trimmed)) return trimmed.replace(/\/chat\/completions$/, '/models');
+  if (/\/v\d+$/.test(trimmed)) return `${trimmed}/models`;
+  return `${trimmed}/v1/models`;
+}
+
 function processChunks(
   chunks: LlmChunk[],
   step: (chunk: LlmChunk) => LlmChunk[],
@@ -50,6 +58,26 @@ export class OpenAICompatibleClient implements LlmClient {
 
   constructor(config: OpenAICompatibleConfig) {
     this.config = config;
+  }
+
+  /** Model ids the endpoint exposes. */
+  async listModels(): Promise<string[]> {
+    const baseUrl = this.config.baseUrl ?? 'https://api.deepseek.com';
+    const apiKey = this.config.apiKey ?? process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY;
+    const response = await fetch(modelsUrl(baseUrl), {
+      headers: {
+        ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
+        ...this.config.defaultHeaders,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`provider models call returned HTTP ${response.status}`);
+    }
+    const body = (await response.json()) as { data?: { id?: string }[] };
+    return (body.data ?? [])
+      .map((entry) => entry.id)
+      .filter((id): id is string => typeof id === 'string')
+      .sort();
   }
 
   async *streamChat(

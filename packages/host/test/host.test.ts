@@ -326,6 +326,43 @@ describe('goals and autonomous continuation', () => {
   });
 });
 
+describe('models', () => {
+  it('sessions carry their model, children inherit it, and the API lists models', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({
+      title: 'm1',
+      model: 'deepseek-v4-pro',
+      goal: null,
+      autoContinue: undefined,
+    });
+    expect(session.meta.model).toBe('deepseek-v4-pro');
+
+    const { child_id } = await host.manager.spawnChild(session, 'work', 'kid');
+    await waitFor(() => host.manager.get(child_id)?.status === 'idle');
+    expect(host.manager.get(child_id)?.meta.model).toBe('deepseek-v4-pro');
+
+    host.config.port = 0;
+    const { port } = await host.server.start();
+    try {
+      const base = `http://127.0.0.1:${port}`;
+      const created = (await fetch(`${base}/api/sessions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title: 'm2', model: 'deepseek-v4-flash' }),
+      }).then((r) => r.json())) as { meta: { id: string; model: string } };
+      expect(created.meta.model).toBe('deepseek-v4-flash');
+
+      const models = (await fetch(`${base}/api/models`).then((r) =>
+        r.json(),
+      )) as { models: string[]; default: string };
+      expect(models.models).toContain('mock-model');
+      expect(models.default).toBe('mock-model');
+    } finally {
+      await host.server.stop();
+    }
+  });
+});
+
 describe('skills', () => {
   it('seeds the bundled suite and the kernel reaches it through host requests', async () => {
     const host = makeHost();

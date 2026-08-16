@@ -55,4 +55,6 @@ export interface LlmClient {
     tools?: ToolDef[],
     options?: LlmRequestOptions,
   ): AsyncIterable<LlmChunk>;
+  /** Model ids the endpoint exposes (for the GUI picker). */
+  listModels(): Promise<string[]>;
 }

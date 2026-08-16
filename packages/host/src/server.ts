@@ -136,6 +136,19 @@ export class HostServer {
       });
       return;
     }
+    if (pathname === '/api/models' && req.method === 'GET') {
+      try {
+        const client = this.manager.createClient({ role: 'root', model: this.config.provider.model });
+        sendJson(res, 200, { models: await client.listModels(), default: this.config.provider.model });
+      } catch (error) {
+        sendJson(res, 200, {
+          models: [this.config.provider.model],
+          default: this.config.provider.model,
+          error: (error as Error).message,
+        });
+      }
+      return;
+    }
     if (pathname === '/api/config') {
       const { provider } = this.config;
       sendJson(res, 200, {
@@ -168,6 +181,8 @@ export class HostServer {
         title: typeof body.title === 'string' ? body.title : undefined,
         goal: typeof body.goal === 'string' && body.goal !== '' ? body.goal : null,
         autoContinue: undefined,
+        model:
+          typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined,
       });
       sendJson(res, 201, { meta: session.meta });
       return;
