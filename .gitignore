@@ -1,5 +1,6 @@
 node_modules/
 dist/
+packages/host/skills/
 *.tsbuildinfo
 .DS_Store
 .env

@@ -66,15 +66,17 @@ Session id: ${sessionInfo.sessionId}`;
 }
 
 function skillsCatalog(skills: SkillInfo[]): string {
+  const installHint =
+    'If you need a skill that is not listed, fetch or write it in the workspace and install it with `await rlm.skills.install("<dir>")` (the directory must contain SKILL.md).';
   if (skills.length === 0) {
-    return 'No skills are installed. You can install one from a local directory with `await rlm.skills.install("<dir>")`.';
+    return `No skills are installed. ${installHint}`;
   }
   const lines = skills.slice(0, 50).map((skill) => {
     const description = skill.description.trim().replace(/\s+/g, ' ');
     const truncated = description.length > 110 ? `${description.slice(0, 107)}...` : description;
     return `- \`${skill.name}\`: ${truncated}`;
   });
-  return `A skill suite is installed. The list below is metadata only: when a task matches a skill's description, load the full instructions first with \`await rlm.skills.load("<name>")\` and follow them. See all installed skills with \`await rlm.skills.list()\`.
+  return `A skill suite is installed. The list below is metadata only: when a task matches a skill's description, load the full instructions first with \`await rlm.skills.load("<name>")\` and follow them. See all installed skills with \`await rlm.skills.list()\`. ${installHint}
 
 ${lines.join('\n')}`;
 }

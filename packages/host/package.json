@@ -9,10 +9,11 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "skills"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "prepack": "node scripts/sync-bundled-skills.cjs"
   },
   "dependencies": {
     "@deep-agent/kernel": "workspace:*",

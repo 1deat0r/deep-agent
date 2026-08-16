@@ -19,7 +19,7 @@ export interface SkillContent {
   content: string;
 }
 
-const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/i;
+const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const MAX_SKILL_BYTES = 256 * 1024;
 
 function parseFrontmatter(text: string): {
@@ -59,19 +59,27 @@ function readSkillInfo(dir: string, name: string): SkillInfo | null {
 function requireSafeName(name: string): string {
   if (!NAME_PATTERN.test(name)) {
     throw new Error(
-      `invalid skill name "${name}": must match ^[a-z0-9][a-z0-9-]*$ (case-insensitive)`,
+      `invalid skill name "${name}": must match ^[a-z0-9][a-z0-9-]*$ (lowercase)`,
     );
   }
   return name;
 }
 
 /**
- * Where the bundled skill suite lives: `<repo>/skills`, shipped with the
- * project so a fresh install is sovereign — no external skill registry needed.
+ * Where the bundled skill suite lives. Resolution order:
+ * 1. `<repo>/skills` — the canonical suite in a source checkout (this module
+ *    sits at packages/host/{src,dist}, three levels under the repo root).
+ * 2. `<package>/skills` — the copy synced into the host package for npm
+ *    installs (see `prepack` in packages/host/package.json).
+ * Returns undefined when neither exists, so seeding degrades to a no-op.
  */
-export function defaultBundledSkillsDir(): string {
+export function defaultBundledSkillsDir(): string | undefined {
   const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, '..', '..', '..', 'skills');
+  const repoCandidate = resolve(here, '..', '..', '..', 'skills');
+  if (existsSync(repoCandidate)) return repoCandidate;
+  const packageCandidate = resolve(here, '..', '..', 'skills');
+  if (existsSync(packageCandidate)) return packageCandidate;
+  return undefined;
 }
 
 /**
@@ -83,7 +91,7 @@ export class SkillsRegistry {
   readonly dir: string;
   private readonly bundledDir: string | undefined;
 
-  constructor(options: { dir: string; bundledDir?: string }) {
+  constructor(options: { dir: string; bundledDir: string | undefined }) {
     this.dir = options.dir;
     this.bundledDir = options.bundledDir;
     mkdirSync(this.dir, { recursive: true });
@@ -128,7 +136,7 @@ export class SkillsRegistry {
       throw new Error(`unknown skill "${safe}" — use rlm.skills.list() to see installed skills`);
     }
     const content = readFileSync(path, 'utf8');
-    if (content.length > MAX_SKILL_BYTES) {
+    if (Buffer.byteLength(content, 'utf8') > MAX_SKILL_BYTES) {
       throw new Error(`skill "${safe}" exceeds the ${MAX_SKILL_BYTES}-byte load limit`);
     }
     const { name: fmName } = parseFrontmatter(content);

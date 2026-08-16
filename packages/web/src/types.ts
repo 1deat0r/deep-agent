@@ -127,3 +127,9 @@ export interface ExecResult {
   error: KernelError | null;
   durationMs: number;
 }
+
+/** A single skill from the /api/skills listing. */
+export interface SkillInfo {
+  name: string;
+  description: string;
+}

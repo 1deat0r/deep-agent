@@ -51,6 +51,15 @@ describe('SkillsRegistry', () => {
     expect(loaded.content).toContain('full instructions');
     expect(() => registry.load('nope')).toThrow(/unknown skill/);
     expect(() => registry.load('../etc')).toThrow(/invalid skill name/);
+    expect(() => registry.load('UPPER-case')).toThrow(/invalid skill name/);
+  });
+
+  it('caps loads at 256 KiB measured in UTF-8 bytes, not code units', () => {
+    writeSkill(bundled, 'big', 'big skill', `${'é'.repeat(200_000)}\n`);
+    const registry = new SkillsRegistry({ dir: installed, bundledDir: bundled });
+    registry.seedBundled();
+    // 200k chars but 400k bytes: the old code-unit check would have passed.
+    expect(() => registry.load('big')).toThrow(/load limit/);
   });
 
   it('installs a skill from a directory and rejects duplicates/traversal', () => {

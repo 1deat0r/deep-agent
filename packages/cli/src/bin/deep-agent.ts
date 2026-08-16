@@ -9,7 +9,6 @@ Usage:
   deep-agent serve [options]     Start the host + web UI
   deep-agent skills list         List installed skills
   deep-agent skills install <dir>  Install a skill from a directory with SKILL.md
-  deep-agent skills path         Print the skills directory
   deep-agent --help
 
 Options (serve):
@@ -163,11 +162,8 @@ async function runSkillsCommand(args: string[]): Promise<void> {
       console.log(`installed ${installed.name} from ${resolve(source)}`);
       return;
     }
-    case 'path':
-      console.log(host.skills.dir);
-      return;
     default:
-      console.error(`usage: deep-agent skills <list|install <dir>|path> [--config <path>] [--data-dir <path>]`);
+      console.error(`usage: deep-agent skills <list|install <dir>> [--config <path>] [--data-dir <path>]`);
       process.exitCode = 1;
   }
 }
