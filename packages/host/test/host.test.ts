@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { LlmChunk } from '@deep-agent/provider';
@@ -470,6 +470,27 @@ describe('HTTP server', () => {
       expect(skills.skills.some((skill) => skill.name === 'tdd')).toBe(true);
     } finally {
       await host.server.stop();
+    }
+  });
+
+  it('serves the GUI with the security-baseline CSP header', async () => {
+    const webDir = mkdtempSync(join(tmpdir(), 'deep-agent-web-'));
+    writeFileSync(join(webDir, 'index.html'), '<!doctype html><html><body>gui</body></html>');
+    process.env.DEEP_AGENT_WEB_DIR = webDir;
+    const host = makeHost();
+    host.config.port = 0;
+    const { port } = await host.server.start();
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/`);
+      expect(response.headers.get('content-security-policy')).toBe(
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data:; connect-src 'self'; font-src 'self'; " +
+          "object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      );
+      expect(await response.text()).toContain('gui');
+    } finally {
+      await host.server.stop();
+      delete process.env.DEEP_AGENT_WEB_DIR;
     }
   });
 });

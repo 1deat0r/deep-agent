@@ -50,6 +50,15 @@ const MIME: Record<string, string> = {
   '.map': 'application/json',
 };
 
+/**
+ * Security baseline for the served GUI (desktop-shell ticket 05). The built
+ * GUI has no inline scripts, so `script-src 'self'` holds.
+ */
+export const GUI_CSP =
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+  "img-src 'self' data:; connect-src 'self'; font-src 'self'; " +
+  "object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+
 function serveStatic(res: ServerResponse, webDir: string, pathname: string): void {
   const safe = pathname.replaceAll('..', '').replace(/^\/+/, '');
   let filePath = join(webDir, safe === '' ? 'index.html' : safe);
@@ -61,7 +70,7 @@ function serveStatic(res: ServerResponse, webDir: string, pathname: string): voi
     return;
   }
   const type = MIME[extname(filePath)] ?? 'application/octet-stream';
-  res.writeHead(200, { 'content-type': type });
+  res.writeHead(200, { 'content-type': type, 'content-security-policy': GUI_CSP });
   createReadStream(filePath).pipe(res);
 }
 
