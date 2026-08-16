@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { LlmChunk } from '@deep-agent/provider';
-import { MockLlmClient, textTurn } from '@deep-agent/provider';
+import { MockLlmClient, textTurn, toolCallTurn } from '@deep-agent/provider';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig, DEFAULT_CONFIG } from '../src/config.js';
 import { createHost } from '../src/index.js';
@@ -114,6 +114,36 @@ describe('compaction', () => {
     expect(text).toContain('PRIOR SUMMARY');
     expect(text).toContain('continue');
     expect(text).not.toContain('old user 0');
+  });
+
+  it('compacts mid-turn when a tool result pushes the context over the threshold', async () => {
+    const host = makeHost({ compactAtChars: 400, compactKeepChars: 150 });
+    const session = await host.manager.createSession({ title: 'mid-turn' });
+    rootScripts.push(
+      toolCallTurn('ipython', { code: "print('PRINT_HHHH_CODE' + 'h' * 1200)" }),
+      textTurn('MID-TURN SUMMARY'),
+      textTurn('final after mid-turn compaction'),
+    );
+
+    const result = await session.runTurn({ content: 'produce a huge tool result' });
+    expect(result.ok).toBe(true);
+    expect(result.summary).toBe('final after mid-turn compaction');
+
+    const compaction = session.transcript.find(
+      (entry): entry is Extract<(typeof session.transcript)[number], { kind: 'compaction' }> =>
+        entry.kind === 'compaction',
+    );
+    expect(compaction?.summary).toBe('MID-TURN SUMMARY');
+
+    // call order: turn call 1, summarization, turn call 2
+    expect(rootMock.calls).toHaveLength(3);
+    expect(rootMock.calls[1]?.messages[0]?.content).toContain('compacting a conversation');
+    const finalContext = JSON.stringify(rootMock.calls[2]?.messages.map((m) => m.content));
+    // the old prefix (the user message) is summarized away, while the most
+    // recent tool result stays paired with its call and visible to the model
+    expect(finalContext).toContain('MID-TURN SUMMARY');
+    expect(finalContext).not.toContain('produce a huge tool result');
+    expect(finalContext).toContain('hhhhh');
   });
 
   it('proceeds uncompacted when summarization fails', async () => {

@@ -230,9 +230,6 @@ export class AgentSession {
     this.abort = new AbortController();
     const client = this.deps.createClient({ role: this.meta.role });
 
-    await this.ensureCompacted(client);
-    const messages: ChatMessage[] = this.buildTurnMessages();
-
     let finalText = '';
     try {
       for (let iteration = 0; iteration < this.deps.config.maxToolIterations; iteration++) {
@@ -240,14 +237,17 @@ export class AgentSession {
           finalText = '(interrupted by user)';
           break;
         }
-        const assistant = await this.runLlmCall(client, messages, turnId, this.abort.signal);
+        // Compaction is checked before every LLM call, not just at turn start:
+        // a single long turn can outgrow the threshold mid-flight.
+        await this.ensureCompacted(client);
+        const context = this.buildTurnMessages();
+        const assistant = await this.runLlmCall(client, context, turnId, this.abort.signal);
         this.append({ kind: 'message', ...assistant });
         this.deps.events.emit({
           type: 'message_complete',
           sessionId: this.id,
           message: { kind: 'message', ...assistant },
         });
-        messages.push(assistant);
 
         const calls = assistant.tool_calls ?? [];
         if (calls.length === 0) {
@@ -256,7 +256,7 @@ export class AgentSession {
         }
 
         for (const call of calls) {
-          messages.push(await this.executeToolCall(call));
+          await this.executeToolCall(call);
         }
       }
       if (finalText === '') finalText = '(tool iteration limit reached)';
@@ -374,6 +374,13 @@ export class AgentSession {
       if (keepChars > 0 && keepChars + chars > this.deps.config.compactKeepChars) break;
       keepChars += chars;
       keepStart = i;
+    }
+    // Tool messages must stay paired with the assistant message that issued
+    // them: never cut between a tool call and its result, or the provider
+    // context becomes malformed. If the kept group alone still exceeds the
+    // threshold, it is left as-is (prefix empty -> no-op next round).
+    while (keepStart > 0 && all[keepStart]?.role === 'tool') {
+      keepStart -= 1;
     }
     const prefix = all.slice(0, keepStart);
     if (prefix.length === 0) return;
