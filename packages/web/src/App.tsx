@@ -28,6 +28,10 @@ import { ChatView } from './components/ChatView';
 import { ConsoleView } from './components/ConsoleView';
 import { RightPanel } from './components/RightPanel';
 import { SettingsModal } from './components/SettingsModal';
+import {
+  desktopSettingsAvailable,
+  getDesktopSettingsState,
+} from './desktop-settings';
 import { StatusDot } from './components/StatusDot';
 import { Toasts, type Toast, type ToastKind } from './components/Toasts';
 
@@ -194,6 +198,21 @@ export function App(): JSX.Element {
     void loadConfig();
     void loadSessions();
   }, [loadConfig, loadSessions]);
+
+  // Desktop shell: first run with no config / no API key opens Settings so the
+  // user lands in the provider form before anything else (ticket 04).
+  useEffect(() => {
+    if (!desktopSettingsAvailable()) return;
+    let cancelled = false;
+    getDesktopSettingsState()
+      .then((state) => {
+        if (!cancelled && state !== null && state.isFirstRun) setSettingsOpen(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Session selection: fetch snapshot, then open the SSE stream.
   useEffect(() => {
