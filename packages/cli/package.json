@@ -1,0 +1,23 @@
+{
+  "name": "@deep-agent/cli",
+  "version": "0.1.0",
+  "description": "deep-agent CLI: serve the harness",
+  "type": "module",
+  "bin": {
+    "deep-agent": "./dist/bin/deep-agent.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+  },
+  "dependencies": {
+    "@deep-agent/host": "workspace:*"
+  }
+}

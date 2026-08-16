@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+.env
+*.log
+.deep-agent/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+coverage/

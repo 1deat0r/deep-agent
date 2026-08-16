@@ -1,0 +1,92 @@
+# Architecture
+
+One sentence: **a TypeScript host owns state; a persistent Python kernel is the
+only model-facing execution surface.**
+
+## Components
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ web GUI (packages/web, React)                                        │
+│   fetch/SSE over the REST API only; holds no authoritative state     │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ HTTP + SSE
+┌───────────────────────────────▼─────────────────────────────────────┐
+│ host (packages/host)                                                 │
+│  AgentManager  ── sessions map, spawn children, route messages        │
+│  AgentSession  ── RLM turn loop, transcript, goal, kernel handle      │
+│  SessionStore  ── meta.json + transcript.jsonl per session dir        │
+│  EventBus      ── typed events + per-session replay buffer            │
+│  HostServer    ── REST routes + SSE + static web dist                 │
+└───────────────┬─────────────────────────────────────────────────────┘
+                │ spawn, JSON-lines over stdin/stdout
+┌───────────────▼─────────────────────────────────────────────────────┐
+│ kernel (python/deep_agent_runtime, pure stdlib)                       │
+│  persistent namespace, cell magics, top-level await                   │
+│  rlm bridge ── typed host_request messages while a cell blocks        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## The RLM turn loop (AgentSession.doRunTurn)
+
+1. Append the user message to the transcript.
+2. Call the provider with one tool schema: `ipython`.
+3. Assistant emits tool calls → execute each through the session's
+   `KernelManager` → the tool result (stdout/stderr/result/error, truncated)
+   goes back as a `tool` message; the full cell is recorded in the transcript
+   and emitted as a `cell_result` event.
+4. No tool calls → the assistant message is the turn's answer.
+5. If the session has an active goal and `autoContinue`, schedule a bounded
+   continuation turn (250 ms later, one round per turn, capped by
+   `maxAutoRounds`, then the goal is marked `blocked`).
+
+Turns serialize through a promise chain per session, so child replies and goal
+continuations queue behind an in-flight turn instead of racing it.
+
+## Children
+
+`await rlm(prompt, name="...")` inside a cell sends a `spawn_child` host
+request; the cell blocks until the host replies with the admission handle. The
+host validates depth (`maxDepth`), creates a child session with its own kernel,
+and runs the child's first turn in the background. Child completion appends a
+synthetic message to the parent transcript and, if the parent auto-continues,
+schedules a wake-up turn. Children reach the parent with
+`await agent_message.send(msg, receiver_role="parent")`.
+
+## Kernel protocol
+
+One JSON object per line, both directions (see `python/deep_agent_runtime/kernel.py`):
+
+- host → kernel: `{"type": "exec", "id", "code"}`, `{"type": "host_response", "request_id", "payload" | "error"}`, `{"type": "shutdown"}`
+- kernel → host: `{"type": "ready"}`, `{"type": "result", "id", ...}`, `{"type": "host_request", "request_id", "request"}`
+
+The kernel blocks during `exec`; while a cell awaits a bridge call, the bridge
+reads stdin itself. Protocol writes bypass any active stdout redirect so cell
+output can never corrupt the wire.
+
+## Persistence
+
+`dataDir/sessions/<id>/`:
+
+- `meta.json` — SessionMeta (id, role, parent, depth, goal, status, ...)
+- `transcript.jsonl` — messages and cells, append-only; the LLM context is
+  rebuilt from it on resume
+- `workspace/` — the kernel's working directory (project files land here)
+
+Restarting the host reloads every session as `idle` with its transcript;
+kernels are respawned lazily on first tool use (Python state does not survive a
+host restart in this MVP).
+
+## Events and SSE
+
+`EventBus` emits typed `HostEvent`s (turn lifecycle, deltas, cells, children,
+goals, errors) and keeps a 500-event replay buffer per session. `GET
+/api/sessions/:id/events` replays the buffer, then streams live events; the web
+GUI rebuilds its view from the snapshot endpoint plus this stream.
+
+## Trust model
+
+The kernel runs model-generated Python with the host's OS permissions. It is a
+durable control environment, **not a sandbox** — same trade as prime-agent.
+Anything host-owned (spawns, routing, goals, provider execution) goes through
+validated host requests; the kernel never sees credentials.

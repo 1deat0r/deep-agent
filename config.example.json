@@ -1,0 +1,16 @@
+{
+  "port": 3824,
+  "host": "127.0.0.1",
+  "dataDir": "~/.local/share/deep-agent",
+  "maxDepth": 3,
+  "maxToolIterations": 60,
+  "maxAutoRounds": 10,
+  "execTimeoutMs": 0,
+  "provider": {
+    "id": "openai-compatible",
+    "baseUrl": "https://api.deepseek.com",
+    "apiKey": "sk-...",
+    "model": "deepseek-chat",
+    "temperature": 0.3
+  }
+}

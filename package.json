@@ -1,0 +1,24 @@
+{
+  "name": "deep-agent",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A DeepSeek-Harness-style agent harness built on prime-agent's pure RLM programming model",
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" build",
+    "typecheck": "pnpm -r --filter \"./packages/*\" typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "pnpm --filter @deep-agent/cli build && node packages/cli/dist/bin/deep-agent.js serve",
+    "dev:web": "pnpm --filter @deep-agent/web dev"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}
