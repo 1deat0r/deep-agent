@@ -130,6 +130,7 @@ describe('rlm children', () => {
         'call-spawn',
       ),
       textTurn('spawned the worker; ending my turn.'),
+      textTurn('woke up after the child reply and confirmed the answer'),
     );
     childScripts.push(textTurn('child computed: answer is 42'));
     const childEvents: string[] = [];
@@ -160,6 +161,8 @@ describe('rlm children', () => {
       ),
     );
     expect(childEvents).toEqual(['child_spawned', 'child_finished']);
+    // the child reply wakes the parent even without an active goal
+    await waitFor(() => parent.meta.lastSummary?.includes('woke up') === true);
   });
 
   it('enforces max depth', async () => {

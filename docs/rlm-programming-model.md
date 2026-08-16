@@ -59,8 +59,10 @@ await rlm.delete_subagent("test-reviewer")
 ```
 
 A child's answer (or explicit `agent_message`) lands in your transcript as a
-message from the child and, if a goal is active and auto-continuation is on,
-wakes a new turn. Depth is bounded by the host's `maxDepth`.
+message from the child and always wakes a new turn so you can integrate the
+result — when a goal is active on auto-continuation that wake counts as a goal
+round; otherwise it is a single bounded continuation. Depth is bounded by the
+host's `maxDepth`.
 
 ## Goals
 

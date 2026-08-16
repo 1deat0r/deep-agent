@@ -162,15 +162,7 @@ export class AgentManager {
       name: child.meta.title,
       content: `[child "${child.meta.title}" finished]\n${summary.slice(0, 4000)}`,
     });
-    if (parent.meta.autoContinue && parent.meta.goal?.status === 'active') {
-      void parent
-        .runTurn({
-          content: `Child "${child.meta.title}" reported back. Review its result, integrate it into the workspace if useful, and continue toward the goal.`,
-          name: 'system',
-          goalRound: true,
-        })
-        .catch(() => undefined);
-    }
+    this.wakeParent(parent, `Child "${child.meta.title}" reported back. Review its result, integrate it into the workspace if useful, and continue the task.`);
   }
 
   listChildren(parent: AgentSession): ChildSummary[] {
@@ -218,15 +210,7 @@ export class AgentManager {
         childId: from.id,
         summary: payload.message,
       });
-      if (parent.meta.autoContinue && parent.meta.goal?.status === 'active') {
-        void parent
-          .runTurn({
-            content: `Child "${from.meta.title}" sent: ${payload.message}`,
-            name: 'system',
-            goalRound: true,
-          })
-          .catch(() => undefined);
-      }
+      this.wakeParent(parent, `Child "${from.meta.title}" sent: ${payload.message}`);
       return;
     }
     if (payload.receiver_role === 'child') {
@@ -263,6 +247,22 @@ export class AgentManager {
     this.store.removeSession(id);
     this.events.emit({ type: 'session_deleted', sessionId: id });
     return true;
+  }
+
+  /**
+   * A child reply always wakes the parent (children reply when an answer is
+   * needed). When an active goal is running on auto-continue, the wake counts
+   * as a goal round; otherwise it is a single bounded continuation turn.
+   */
+  private wakeParent(parent: AgentSession, prompt: string): void {
+    const isGoalRound = parent.meta.goal?.status === 'active' && parent.meta.autoContinue;
+    void parent
+      .runTurn({
+        content: prompt,
+        name: 'system',
+        ...(isGoalRound ? { goalRound: true } : {}),
+      })
+      .catch(() => undefined);
   }
 
   async disposeAll(): Promise<void> {

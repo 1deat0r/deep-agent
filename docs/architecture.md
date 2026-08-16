@@ -48,9 +48,10 @@ continuations queue behind an in-flight turn instead of racing it.
 `await rlm(prompt, name="...")` inside a cell sends a `spawn_child` host
 request; the cell blocks until the host replies with the admission handle. The
 host validates depth (`maxDepth`), creates a child session with its own kernel,
-and runs the child's first turn in the background. Child completion appends a
-synthetic message to the parent transcript and, if the parent auto-continues,
-schedules a wake-up turn. Children reach the parent with
+and runs the child's first turn in the background. Child completion (or an
+explicit `agent_message`) appends a synthetic message to the parent transcript
+and wakes a parent turn — counted as a goal round when a goal is active,
+otherwise a single bounded continuation. Children reach the parent with
 `await agent_message.send(msg, receiver_role="parent")`.
 
 ## Kernel protocol
