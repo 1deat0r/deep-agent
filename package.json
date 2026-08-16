@@ -13,7 +13,7 @@
     "typecheck": "pnpm -r --filter \"./packages/*\" typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:python": "python3 -m unittest discover python/deep_agent_runtime -v",
+    "test:python": "PYTHONPATH=python python3 -m unittest discover python/deep_agent_runtime -v",
     "dev": "pnpm --filter @deep-agent/cli build && node packages/cli/dist/bin/deep-agent.js serve",
     "dev:web": "pnpm --filter @deep-agent/web dev",
     "demo": "pnpm build && node --experimental-strip-types examples/demo.ts"
