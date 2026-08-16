@@ -54,6 +54,7 @@ class Kernel:
         session_dir: str,
         workspace_dir: str,
         exec_timeout_ms: int = 0,
+        extra_paths: list[str] | None = None,
     ):
         self._write_line = write_line
         self._read_line = read_line
@@ -63,6 +64,9 @@ class Kernel:
         self._workspace_dir = workspace_dir
         Path(workspace_dir).mkdir(parents=True, exist_ok=True)
         os.chdir(workspace_dir)
+        for path in extra_paths or []:
+            if path not in sys.path:
+                sys.path.insert(0, path)
         self._ns: dict[str, Any] = {}
         self._install_interrupt_handler()
         self._load_namespace()
@@ -315,6 +319,7 @@ def main() -> None:
     parser.add_argument("--session-dir", required=True)
     parser.add_argument("--workspace-dir", required=True)
     parser.add_argument("--exec-timeout-ms", type=int, default=0)
+    parser.add_argument("--extra-path", action="append", default=[])
     args = parser.parse_args()
 
     Path(args.session_dir).mkdir(parents=True, exist_ok=True)
@@ -335,6 +340,7 @@ def main() -> None:
         session_dir=args.session_dir,
         workspace_dir=args.workspace_dir,
         exec_timeout_ms=args.exec_timeout_ms,
+        extra_paths=args.extra_path,
     )
     kernel.run_forever()
 

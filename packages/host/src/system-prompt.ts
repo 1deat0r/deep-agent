@@ -67,7 +67,8 @@ Session id: ${sessionInfo.sessionId}`;
 
 function skillsCatalog(skills: SkillInfo[]): string {
   const installHint =
-    'If you need a skill that is not listed, fetch or write it in the workspace and install it with `await rlm.skills.install("<dir>")` (the directory must contain SKILL.md).';
+    'If you need a skill that is not listed, fetch or write it in the workspace and install it with `await rlm.skills.install("<dir>")` (the directory must contain SKILL.md). ' +
+    'Skills that ship a Python package expose it with `api = await rlm.skills.import_python("<name>")` (returns the package name and its function signatures/docs) — then import and call it in a cell.';
   if (skills.length === 0) {
     return `No skills are installed. ${installHint}`;
   }

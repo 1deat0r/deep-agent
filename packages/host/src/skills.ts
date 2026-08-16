@@ -19,15 +19,24 @@ export interface SkillContent {
   content: string;
 }
 
+export interface PythonSkill {
+  name: string;
+  package: string;
+  /** Directory to put on sys.path (contains the package). */
+  dir: string;
+}
+
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+const PACKAGE_PATTERN = /^[a-z_][a-z0-9_]*$/;
 const MAX_SKILL_BYTES = 256 * 1024;
 
 function parseFrontmatter(text: string): {
   name: string | undefined;
   description: string | undefined;
+  pythonPackage: string | undefined;
 } {
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  if (!match) return { name: undefined, description: undefined };
+  if (!match) return { name: undefined, description: undefined, pythonPackage: undefined };
   const out: Record<string, string> = {};
   for (const line of match[1]?.split('\n') ?? []) {
     const index = line.indexOf(':');
@@ -40,9 +49,13 @@ function parseFrontmatter(text: string): {
     ) {
       value = value.slice(1, -1);
     }
-    if (key === 'name' || key === 'description') out[key] = value;
+    if (key === 'name' || key === 'description' || key === 'python-package') out[key] = value;
   }
-  return { name: out.name, description: out.description };
+  return {
+    name: out.name,
+    description: out.description,
+    pythonPackage: out['python-package'],
+  };
 }
 
 function readSkillInfo(dir: string, name: string): SkillInfo | null {
@@ -127,6 +140,31 @@ export class SkillsRegistry {
 
   has(name: string): boolean {
     return existsSync(join(this.dir, requireSafeName(name), 'SKILL.md'));
+  }
+
+  /**
+   * Skills that ship an importable Python package: `<skill>/python/<pkg>/`.
+   * The package name comes from the SKILL.md `python-package` field or the
+   * skill name with dashes mapped to underscores.
+   */
+  pythonSkills(): PythonSkill[] {
+    const out: PythonSkill[] = [];
+    for (const info of this.list()) {
+      const pythonDir = join(this.dir, info.name, 'python');
+      if (!existsSync(pythonDir)) continue;
+      const text = readFileSync(join(this.dir, info.name, 'SKILL.md'), 'utf8');
+      const frontmatter = parseFrontmatter(text);
+      const pkg = frontmatter.pythonPackage ?? info.name.replaceAll('-', '_');
+      if (!PACKAGE_PATTERN.test(pkg) || !existsSync(join(pythonDir, pkg, '__init__.py'))) continue;
+      out.push({ name: info.name, package: pkg, dir: pythonDir });
+    }
+    out.sort((a, b) => a.name.localeCompare(b.name));
+    return out;
+  }
+
+  pythonSkill(name: string): PythonSkill | null {
+    const safe = requireSafeName(name);
+    return this.pythonSkills().find((skill) => skill.name === safe) ?? null;
   }
 
   load(name: string): SkillContent {

@@ -97,6 +97,21 @@ outside its workspace):
 await rlm.skills.install("downloaded/my-new-skill")
 ```
 
+### Python-backed skills
+
+A skill may ship an importable Python package (`<skill>/python/<pkg>/` with a
+`python-package:` frontmatter field). Its directory is on `sys.path` from
+kernel start, so a cell can import it directly; `import_python` returns the
+package's public API for discovery and registers late-installed skills:
+
+```python
+api = await rlm.skills.import_python("project-stats")
+# {"package": "project_stats", "functions": [{"name": "file_counts", "signature": "()", "doc": "..."}, ...]}
+
+import project_stats
+project_stats.file_counts()
+```
+
 ## The host bridge
 
 `rlm`, `agent_message`, the goal API, and the skills API are thin wrappers over

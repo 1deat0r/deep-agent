@@ -612,6 +612,7 @@ export class AgentSession {
       runtimeDir: this.deps.config.pythonDir,
       execTimeoutMs: this.deps.config.execTimeoutMs,
       maxRestarts: this.deps.config.maxKernelRestarts,
+      extraPythonPaths: this.deps.skills.pythonSkills().map((skill) => skill.dir),
       onRestart: (reason) => {
         this.append({
           kind: 'message',
@@ -664,6 +665,11 @@ export class AgentSession {
         const raw = String(payload.source ?? '');
         const source = isAbsolute(raw) ? raw : join(this.workspaceDir, raw);
         return this.deps.skills.install(source);
+      }
+      case 'skills_import': {
+        const skill = this.deps.skills.pythonSkill(String(payload.name ?? ''));
+        if (!skill) throw new Error(`skill "${String(payload.name)}" has no Python package`);
+        return { package: skill.package, path: skill.dir };
       }
       case 'goal_create': {
         const objective = String(payload.objective ?? '').trim();

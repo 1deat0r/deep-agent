@@ -32,6 +32,8 @@ export interface KernelOptions {
   workspaceDir: string;
   /** Per-cell timeout in ms; 0 disables (POSIX only, SIGALRM-based). */
   execTimeoutMs: number | undefined;
+  /** Directories added to sys.path at kernel start (Python-backed skills). */
+  extraPythonPaths: string[] | undefined;
   /** How many times an unexpectedly-exited kernel is respawned on demand. */
   maxRestarts: number | undefined;
   /** Called just before respawning a crashed kernel, with the exit reason. */
@@ -128,6 +130,7 @@ export class KernelManager {
       workspaceDir,
       '--exec-timeout-ms',
       String(execTimeoutMs ?? 0),
+      ...(this.options.extraPythonPaths ?? []).flatMap((path) => ['--extra-path', path]),
     ];
     const child = spawn(String(pythonPath), args, {
       cwd: workspaceDir,

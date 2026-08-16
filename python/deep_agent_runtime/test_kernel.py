@@ -134,6 +134,27 @@ class KernelTest(unittest.TestCase):
         self.assertEqual(msg["receiver_role"], "parent")
         self.assertEqual(msg["message"], "done")
 
+    def test_rlm_skills_import_python(self):
+        import tempfile
+        from pathlib import Path
+
+        pkg_dir = Path(tempfile.mkdtemp())
+        (pkg_dir / "demo_skill").mkdir()
+        (pkg_dir / "demo_skill" / "__init__.py").write_text(
+            "def double(n):\n    \"\"\"Double a number.\"\"\"\n    return n * 2\n"
+        )
+        result = self.host.exec(
+            'api = await rlm.skills.import_python("demo-skill")\napi',
+            host_reply={"package": "demo_skill", "path": str(pkg_dir)},
+        )
+        self.assertIsNone(result["error"], result)
+        self.assertIn("demo_skill", result["result_repr"])
+        self.assertIn("double", result["result_repr"])
+        self.assertEqual(self.host.requests[0]["request"]["kind"], "skills_import")
+        # the path landed on sys.path, so a plain import works afterwards
+        result2 = self.host.exec("import demo_skill\ndemo_skill.double(21)")
+        self.assertEqual(result2["result_repr"], "42")
+
     def test_rlm_skills_requests(self):
         self.host.exec(
             "skills = await rlm.skills.list()\nskills",

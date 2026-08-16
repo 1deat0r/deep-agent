@@ -108,6 +108,11 @@ directory of Agent-Skills packages (one `SKILL.md` per subdirectory):
 - **Install** — `skills_install` copies a directory containing `SKILL.md` into
   the registry. Relative paths resolve against the calling session's workspace;
   names must match `[a-z0-9-]+`; duplicates and traversal attempts are rejected.
+- **Python-backed** — a skill may ship `python/<pkg>/` with a `python-package:`
+  frontmatter field. Its directory is passed to the kernel at spawn
+  (`--extra-path`), so cells can `import` it directly; `skills_import` returns
+  the package's public functions (signatures + one-line docs) and registers
+  late-installed packages by inserting the path into the running kernel.
 - The system prompt carries the catalog (metadata only, descriptions truncated)
   and instructs the model to `await rlm.skills.load(name)` before acting on a
   matching task.

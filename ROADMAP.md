@@ -4,7 +4,6 @@ Deliberately out of scope so far; listed so the gaps are explicit.
 
 ## Capability
 
-- Python-backed skills (prime-agent's `SKILL.md` + importable package format).
 - Provider library: Anthropic, local models via Ollama/LM Studio profiles,
   per-session model selection.
 - Sandboxed execution profiles (container/e2b-style) for untrusted repos.

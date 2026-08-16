@@ -348,6 +348,23 @@ describe('skills', () => {
     expect(unknown.error?.type).toBe('HostError');
   });
 
+  it('imports a Python-backed skill through the bridge and calls it', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'py-skill' });
+    const api = await session.execConsole('await rlm.skills.import_python("project-stats")');
+    expect(api.error).toBeNull();
+    expect(api.resultRepr).toContain('project_stats');
+    expect(api.resultRepr).toContain('file_counts');
+    // the package was importable from the start (spawn-time sys.path)
+    const used = await session.execConsole(
+      "import project_stats\nproject_stats.file_counts()",
+    );
+    expect(used.error).toBeNull();
+    expect(used.resultRepr).toContain('{');
+    const unknown = await session.execConsole('await rlm.skills.import_python("tdd")');
+    expect(unknown.error?.type).toBe('HostError');
+  });
+
   it('installs a workspace skill from inside the kernel', async () => {
     const host = makeHost();
     const session = await host.manager.createSession({ title: 'installer' });

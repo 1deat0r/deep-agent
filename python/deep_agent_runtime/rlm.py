@@ -18,6 +18,8 @@ point of view.
 
 from __future__ import annotations
 
+import importlib
+import inspect
 import json
 import sys
 import threading
@@ -138,12 +140,35 @@ class _Rlm:
         return str(self._bridge.session.get("session_id", ""))
 
 
+def _introspect_module(module: Any) -> dict[str, Any]:
+    functions: list[dict[str, str]] = []
+    for attr in dir(module):
+        if attr.startswith("_"):
+            continue
+        obj = getattr(module, attr)
+        if not callable(obj):
+            continue
+        if getattr(obj, "__module__", None) != module.__name__:
+            continue
+        try:
+            signature = str(inspect.signature(obj))
+        except (TypeError, ValueError):
+            signature = "(...)"
+        doc = (inspect.getdoc(obj) or "").strip().split("\n")[0]
+        functions.append({"name": attr, "signature": signature, "doc": doc})
+    return {
+        "package": module.__name__,
+        "functions": sorted(functions, key=lambda f: f["name"]),
+    }
+
+
 class _Skills:
     """``rlm.skills`` — the installed Agent Skills suite, owned by the host.
 
     Only metadata (name + description) sits in the system prompt; load the
     full SKILL.md when a task matches, and install new skills from a local
-    directory when one is needed.
+    directory when one is needed. Skills that ship a Python package expose it
+    through import_python().
     """
 
     def __init__(self, bridge: _Bridge):
@@ -159,6 +184,29 @@ class _Skills:
         return _Awaitable(
             lambda: self._bridge.request("skills_install", {"source": source_dir})
         )
+
+    def import_python(self, name: str) -> Awaitable[dict[str, Any]]:
+        """Register a Python-backed skill's package and return its public API.
+
+        The host validates the skill and returns the package dir; the kernel
+        puts it on sys.path, imports it, and reports every public function
+        with its signature and one-line doc. The model then imports the package
+        in a cell and calls the functions directly.
+        """
+
+        def thunk() -> dict[str, Any]:
+            payload = self._bridge.request("skills_import", {"name": name})
+            path = str(payload["path"])
+            package = str(payload["package"])
+            if path not in sys.path:
+                sys.path.insert(0, path)
+            try:
+                module = importlib.import_module(package)
+            except Exception as exc:  # surface import failures as host errors
+                raise HostError(f"failed to import {package}: {exc}") from exc
+            return _introspect_module(module)
+
+        return _Awaitable(thunk)
 
 
 class _Goal:
