@@ -7,9 +7,12 @@ function usage(): void {
 
 Usage:
   deep-agent serve [options]     Start the host + web UI
+  deep-agent skills list         List installed skills
+  deep-agent skills install <dir>  Install a skill from a directory with SKILL.md
+  deep-agent skills path         Print the skills directory
   deep-agent --help
 
-Options:
+Options (serve):
   --config <path>        JSON config file
   --port <n>             Override the listen port
   --host <addr>          Override the listen address
@@ -20,7 +23,8 @@ Options:
 
 Environment:
   DEEP_AGENT_CONFIG, DEEP_AGENT_PORT, DEEP_AGENT_DATA_DIR, DEEP_AGENT_API_KEY,
-  DEEP_AGENT_MODEL, DEEP_AGENT_BASE_URL, DEEP_AGENT_PYTHON, DEEP_AGENT_PYTHON_DIR
+  DEEP_AGENT_MODEL, DEEP_AGENT_BASE_URL, DEEP_AGENT_PYTHON, DEEP_AGENT_PYTHON_DIR,
+  DEEP_AGENT_SKILLS_DIR
 `);
 }
 
@@ -81,6 +85,10 @@ async function main(): Promise<void> {
     return;
   }
   const [command, ...rest] = argv;
+  if (command === 'skills') {
+    await runSkillsCommand(rest);
+    return;
+  }
   if (command !== 'serve') {
     usage();
     process.exitCode = 1;
@@ -122,6 +130,49 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', () => void shutdown());
   process.on('SIGTERM', () => void shutdown());
+}
+
+async function runSkillsCommand(args: string[]): Promise<void> {
+  const [sub, ...rest] = args;
+  // flags before the subcommand values are accepted for convenience
+  const flags: Record<string, string> = {};
+  for (let i = 0; i < rest.length; i += 2) {
+    const flag = rest[i];
+    if (flag?.startsWith('--') && rest[i + 1] !== undefined) {
+      flags[flag] = rest[i + 1] ?? '';
+    }
+  }
+  if (flags['--config']) process.env.DEEP_AGENT_CONFIG = resolve(flags['--config']);
+  const config = loadConfig(
+    (flags['--data-dir'] ? { dataDir: flags['--data-dir'] } : {}) as Parameters<
+      typeof loadConfig
+    >[0],
+  );
+  const host = createHost(config);
+
+  switch (sub) {
+    case 'list': {
+      const skills = host.skills.list();
+      console.log(`${skills.length} skills in ${host.skills.dir}`);
+      for (const skill of skills) {
+        console.log(`  ${skill.name}\t${skill.description.trim().slice(0, 80)}`);
+      }
+      return;
+    }
+    case 'install': {
+      const source = rest[0];
+      if (!source) throw new Error('skills install requires a source directory');
+      const installed = host.skills.install(source);
+      console.log(`installed ${installed.name} from ${resolve(source)}`);
+      return;
+    }
+    case 'path':
+      console.log(host.skills.dir);
+      return;
+    default:
+      console.error(`usage: deep-agent skills <list|install <dir>|path> [--config <path>] [--data-dir <path>]`);
+      process.exitCode = 1;
+  }
 }
 
 main().catch((error) => {

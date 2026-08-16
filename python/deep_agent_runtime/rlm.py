@@ -101,6 +101,7 @@ class _Rlm:
     def __init__(self, bridge: _Bridge):
         self._bridge = bridge
         self.goal = _Goal(bridge)
+        self.skills = _Skills(bridge)
 
     def __call__(self, prompt: str, name: str | None = None) -> Awaitable[dict[str, Any]]:
         return _Awaitable(
@@ -135,6 +136,29 @@ class _Rlm:
     @property
     def session_id(self) -> str:
         return str(self._bridge.session.get("session_id", ""))
+
+
+class _Skills:
+    """``rlm.skills`` — the installed Agent Skills suite, owned by the host.
+
+    Only metadata (name + description) sits in the system prompt; load the
+    full SKILL.md when a task matches, and install new skills from a local
+    directory when one is needed.
+    """
+
+    def __init__(self, bridge: _Bridge):
+        self._bridge = bridge
+
+    def list(self) -> Awaitable[list[dict[str, str]]]:
+        return _Awaitable(lambda: self._bridge.request("skills_list"))
+
+    def load(self, name: str) -> Awaitable[dict[str, str]]:
+        return _Awaitable(lambda: self._bridge.request("skills_load", {"name": name}))
+
+    def install(self, source_dir: str) -> Awaitable[dict[str, str]]:
+        return _Awaitable(
+            lambda: self._bridge.request("skills_install", {"source": source_dir})
+        )
 
 
 class _Goal:

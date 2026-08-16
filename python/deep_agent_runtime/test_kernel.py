@@ -134,6 +134,29 @@ class KernelTest(unittest.TestCase):
         self.assertEqual(msg["receiver_role"], "parent")
         self.assertEqual(msg["message"], "done")
 
+    def test_rlm_skills_requests(self):
+        self.host.exec(
+            "skills = await rlm.skills.list()\nskills",
+            host_reply=[
+                {"name": "tdd", "description": "Test-driven development"},
+                {"name": "research", "description": "Investigate a question"},
+            ],
+        )
+        self.host.exec(
+            'skill = await rlm.skills.load("tdd")\nskill',
+            host_reply={"name": "tdd", "content": "# TDD\nfull instructions"},
+        )
+        self.host.exec(
+            'await rlm.skills.install("/workspace/new-skill")',
+            host_reply={"name": "new-skill", "description": "fresh"},
+        )
+        kinds = [r["request"]["kind"] for r in self.host.requests]
+        self.assertEqual(kinds, ["skills_list", "skills_load", "skills_install"])
+        load_req = self.host.requests[1]["request"]
+        self.assertEqual(load_req["name"], "tdd")
+        install_req = self.host.requests[2]["request"]
+        self.assertEqual(install_req["source"], "/workspace/new-skill")
+
     def test_rlm_session_info(self):
         result = self.host.exec("rlm.session_id, rlm.session_dir, rlm.workspace_dir")
         self.assertIn("'s1'", result["result_repr"])

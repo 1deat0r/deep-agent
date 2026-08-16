@@ -76,13 +76,33 @@ await rlm.goal.block("waiting on the upstream API")
 
 A blocked goal stops auto-continuation; the human (or a later turn) re-arms it.
 
+## Skills
+
+A suite of instruction skills ships with the harness (vendored in the repo's
+`skills/` directory and seeded into the data dir on first run). The system
+prompt lists their metadata; load the full instructions when a task matches:
+
+```python
+skills = await rlm.skills.list()          # [{name, description}, ...]
+skill = await rlm.skills.load("tdd")      # {name, content} — the full SKILL.md
+```
+
+Need a skill that isn't installed? Fetch or write it in the workspace, then
+hand it to the host (which validates and copies it — the kernel never writes
+outside its workspace):
+
+```python
+await rlm.skills.install("downloaded/my-new-skill")
+```
+
 ## The host bridge
 
-`rlm`, `agent_message`, and the goal API are thin wrappers over typed
-`host_request` messages. The kernel cell blocks until the TypeScript host
+`rlm`, `agent_message`, the goal API, and the skills API are thin wrappers over
+typed `host_request` messages. The kernel cell blocks until the TypeScript host
 validates the request and replies; a rejected request raises `HostError` in the
-cell. This keeps credentials, provider execution, session routing, and safety
-policy out of Python while keeping the model surface a plain function call.
+cell. This keeps credentials, provider execution, session routing, skills
+storage, and safety policy out of Python while keeping the model surface a
+plain function call.
 
 ## Result shape
 

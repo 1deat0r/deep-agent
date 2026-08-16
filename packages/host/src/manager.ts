@@ -1,6 +1,7 @@
 import type { LlmClient } from '@deep-agent/provider';
 import { EventBus } from './events.js';
 import { AgentSession, type SessionDeps, type SessionHost } from './session.js';
+import { SkillsRegistry } from './skills.js';
 import { SessionStore } from './store.js';
 import type { ChildSummary, HostConfig, SessionMeta } from './types.js';
 
@@ -17,6 +18,7 @@ export class AgentManager {
     readonly store: SessionStore,
     readonly events: EventBus,
     readonly config: HostConfig,
+    readonly skills: SkillsRegistry,
     readonly createClient: SessionDeps['createClient'],
   ) {
     this.hostBridge = {
@@ -32,6 +34,7 @@ export class AgentManager {
       store: this.store,
       events: this.events,
       config: this.config,
+      skills: this.skills,
       createClient: this.createClient,
       host: this.hostBridge,
     };

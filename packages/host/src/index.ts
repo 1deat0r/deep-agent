@@ -6,12 +6,15 @@ import { EventBus } from './events.js';
 import { AgentManager } from './manager.js';
 import { HostServer } from './server.js';
 import { SessionStore } from './store.js';
+import { defaultBundledSkillsDir, SkillsRegistry } from './skills.js';
+import { join } from 'node:path';
 
 export interface Host {
   config: ReturnType<typeof loadConfig>;
   manager: AgentManager;
   server: HostServer;
   events: EventBus;
+  skills: SkillsRegistry;
 }
 
 export function buildClient(config: Host['config']): LlmClient {
@@ -53,12 +56,20 @@ export function createHost(
       throw error;
     }
   }
-  const manager = new AgentManager(store, events, config, (ctx) =>
+  const skills = new SkillsRegistry({
+    dir: config.skillsDir ?? join(config.dataDir, 'skills'),
+    bundledDir: defaultBundledSkillsDir(),
+  });
+  const seeded = skills.seedBundled();
+  if (seeded.length > 0) {
+    console.log(`[deep-agent] seeded ${seeded.length} bundled skills into ${skills.dir}`);
+  }
+  const manager = new AgentManager(store, events, config, skills, (ctx) =>
     clientFactory ? clientFactory(config, ctx) : client,
   );
   manager.loadAll();
   const server = new HostServer({ config, manager });
-  return { config, manager, server, events };
+  return { config, manager, server, events, skills };
 }
 
 export * from './types.js';
@@ -70,3 +81,5 @@ export { SessionStore } from './store.js';
 export { HostServer } from './server.js';
 export { systemPrompt } from './system-prompt.js';
 export { EchoLlmClient } from './mock-client.js';
+export { defaultBundledSkillsDir, SkillsRegistry } from './skills.js';
+export type { SkillContent, SkillInfo } from './skills.js';

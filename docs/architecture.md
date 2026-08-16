@@ -77,6 +77,24 @@ Restarting the host reloads every session as `idle` with its transcript;
 kernels are respawned lazily on first tool use (Python state does not survive a
 host restart in this MVP).
 
+## Skills
+
+`SkillsRegistry` (`packages/host/src/skills.ts`) owns `dataDir/skills`, a
+directory of Agent-Skills packages (one `SKILL.md` per subdirectory):
+
+- **Seed** — at host startup, skills vendored in the repo's `skills/` dir are
+  copied into `dataDir/skills` when missing (copy-on-missing; user-installed
+  copies are never overwritten). The suite ships with the repo, so a fresh
+  clone is sovereign — no external registry.
+- **List/load** — `skills_list` returns frontmatter metadata (name +
+  description); `skills_load` returns the full `SKILL.md` (256 KB cap).
+- **Install** — `skills_install` copies a directory containing `SKILL.md` into
+  the registry. Relative paths resolve against the calling session's workspace;
+  names must match `[a-z0-9-]+`; duplicates and traversal attempts are rejected.
+- The system prompt carries the catalog (metadata only, descriptions truncated)
+  and instructs the model to `await rlm.skills.load(name)` before acting on a
+  matching task.
+
 ## Events and SSE
 
 `EventBus` emits typed `HostEvent`s (turn lifecycle, deltas, cells, children,

@@ -81,6 +81,7 @@ export function loadConfig(overrides: ConfigOverrides = {}): HostConfig {
     ...(process.env.DEEP_AGENT_DATA_DIR ? { dataDir: process.env.DEEP_AGENT_DATA_DIR } : {}),
     ...(process.env.DEEP_AGENT_PYTHON ? { pythonPath: process.env.DEEP_AGENT_PYTHON } : {}),
     ...(process.env.DEEP_AGENT_PYTHON_DIR ? { pythonDir: process.env.DEEP_AGENT_PYTHON_DIR } : {}),
+    ...(process.env.DEEP_AGENT_SKILLS_DIR ? { skillsDir: process.env.DEEP_AGENT_SKILLS_DIR } : {}),
     ...(process.env.DEEP_AGENT_MAX_DEPTH ? { maxDepth: Number(process.env.DEEP_AGENT_MAX_DEPTH) } : {}),
     ...(process.env.DEEP_AGENT_EXEC_TIMEOUT_MS
       ? { execTimeoutMs: Number(process.env.DEEP_AGENT_EXEC_TIMEOUT_MS) }

@@ -10,11 +10,11 @@ the model gets exactly **one built-in tool** (`ipython`) and composes every
 capability as code in a persistent Python kernel.
 
 ```
-Web GUI (React) ──▶ TypeScript host (RLM loop, sessions, children, goals)
+Web GUI (React) ──▶ TypeScript host (RLM loop, sessions, children, goals, skills)
                         │  spawn
                         ▼
                  persistent Python kernel (one ipython tool)
-                        │  rlm(...) / agent_message / goals
+                        │  rlm(...) / agent_message / goals / skills
                         ▼
                  host bridge (validated, host-owned state)
 ```
@@ -56,6 +56,24 @@ handle = await rlm("Review the auth flow for security issues", name="auth-review
 await rlm.goal.create("Implement the parser and its tests")
 ```
 
+## Skills: sovereign by default
+
+deep-agent ships with the **Matt Pocock skill suite** vendored in `skills/`
+(37 skills: TDD, code review, domain modeling, diagnosis, triage, wayfinding,
+writing, grilling, and the rest). On first run the host seeds them into
+`<dataDir>/skills`, lists their metadata in the agent's system prompt, and the
+model loads them on demand — `await rlm.skills.load("tdd")` — or installs new
+ones from its workspace: `await rlm.skills.install("path/to/skill")`.
+
+A fresh clone is fully self-contained: `pnpm build && node
+packages/cli/dist/bin/deep-agent.js serve --provider mock` runs the whole
+harness offline, skills included. Manage skills from the CLI too:
+
+```bash
+node packages/cli/dist/bin/deep-agent.js skills list
+node packages/cli/dist/bin/deep-agent.js skills install <dir>
+```
+
 Full model: [docs/rlm-programming-model.md](docs/rlm-programming-model.md).
 
 ## Repository map
@@ -64,11 +82,12 @@ Full model: [docs/rlm-programming-model.md](docs/rlm-programming-model.md).
 | --- | --- |
 | `packages/provider/` | `@deep-agent/provider` — OpenAI-compatible streaming client + scripted mock |
 | `packages/kernel/` | `@deep-agent/kernel` — TS manager for the kernel subprocess |
-| `packages/host/` | `@deep-agent/host` — RLM loop, sessions, children, goals, HTTP+SSE server |
+| `packages/host/` | `@deep-agent/host` — RLM loop, sessions, children, goals, skills, HTTP+SSE server |
 | `packages/web/` | `@deep-agent/web` — the web GUI (React + Vite) |
-| `packages/cli/` | `@deep-agent/cli` — the `deep-agent serve` command |
+| `packages/cli/` | `@deep-agent/cli` — the `deep-agent serve` / `skills` commands |
 | `python/deep_agent_runtime/` | The kernel: pure-stdlib persistent Python with the `rlm` bridge |
-| `docs/` | [Architecture](docs/architecture.md) and the [RLM model](docs/rlm-programming-model.md) |
+| `skills/` | Vendored Matt Pocock skill suite, seeded into the data dir |
+| `docs/` | [Architecture](docs/architecture.md), the [RLM model](docs/rlm-programming-model.md), and the agent tooling config in `docs/agents/` |
 
 Architecture and data flow: [docs/architecture.md](docs/architecture.md).
 

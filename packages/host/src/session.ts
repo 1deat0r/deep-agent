@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { isAbsolute, join } from 'node:path';
 import type { ChatMessage, LlmClient, ToolCall } from '@deep-agent/provider';
 import { KernelManager, type ExecResult, type HostRequest } from '@deep-agent/kernel';
 import { IPYTHON_TOOL } from './types.js';
@@ -12,6 +13,7 @@ import type {
   TranscriptEntry,
 } from './types.js';
 import { EventBus } from './events.js';
+import { SkillsRegistry } from './skills.js';
 import { SessionStore } from './store.js';
 import { systemPrompt } from './system-prompt.js';
 
@@ -19,6 +21,7 @@ export interface SessionDeps {
   store: SessionStore;
   events: EventBus;
   config: HostConfig;
+  skills: SkillsRegistry;
   /** Client factory, given the session role (root or child). */
   createClient: (ctx: { role: SessionRole }) => LlmClient;
   host: SessionHost;
@@ -233,6 +236,7 @@ export class AgentSession {
           workspaceDir: this.workspaceDir,
           parentName: this.parentName(),
           goalObjective: this.meta.goal?.objective ?? null,
+          skills: this.deps.skills.list(),
         }),
       },
       ...SessionStore.messagesFrom(this.transcript),
@@ -471,6 +475,17 @@ export class AgentSession {
             : {}),
         });
         return { ok: true };
+      case 'skills_list':
+        return this.deps.skills.list();
+      case 'skills_load':
+        return this.deps.skills.load(String(payload.name ?? ''));
+      case 'skills_install': {
+        // Relative paths are resolved against the session workspace: the
+        // kernel's cwd, not the host process cwd.
+        const raw = String(payload.source ?? '');
+        const source = isAbsolute(raw) ? raw : join(this.workspaceDir, raw);
+        return this.deps.skills.install(source);
+      }
       case 'goal_create': {
         const objective = String(payload.objective ?? '').trim();
         if (objective === '') throw new Error('goal_create requires a non-empty objective');

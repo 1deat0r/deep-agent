@@ -57,3 +57,35 @@ model surface before changing the loop.
   child sessions draw from role-scoped queues.
 - Pure-stdlib Python in the runtime: no third-party imports in
   `python/deep_agent_runtime/` (the kernel must boot anywhere `python3` exists).
+
+## Skills
+
+- Skills are `SKILL.md` directories under `dataDir/skills`, seeded at host
+  startup from the suite vendored in `skills/` (copy-on-missing, never
+  overwrite). `packages/host/src/skills.ts` owns seed/list/load/install; the
+  kernel reaches skills only through `skills_list` / `skills_load` /
+  `skills_install` host requests (`rlm.skills.*`).
+- The system prompt carries the skill catalog (name + description only); full
+  content loads on demand via `rlm.skills.load(name)`. When you add or rename a
+  skill's description in `skills/`, the prompt changes with it — no code edit.
+- Installing a skill is a host-side copy: relative paths resolve against the
+  session workspace, names must match `[a-z0-9-]+` (no traversal), and the
+  source must contain `SKILL.md`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as local markdown under `.scratch/<feature-slug>/`.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles map to themselves (`needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context: `CONTEXT-MAP.md` points at one `CONTEXT.md` per package (and
+`python/`), created lazily by `/domain-modeling`; system-wide ADRs live in
+`docs/adr/`. See `docs/agents/domain.md`.

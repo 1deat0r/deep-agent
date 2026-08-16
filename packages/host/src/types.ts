@@ -83,6 +83,8 @@ export interface HostConfig {
   /** Directory holding the deep_agent_runtime Python package. */
   pythonDir?: string;
   pythonPath?: string;
+  /** Skills directory; defaults to <dataDir>/skills. */
+  skillsDir?: string;
   maxDepth: number;
   maxToolIterations: number;
   maxAutoRounds: number;

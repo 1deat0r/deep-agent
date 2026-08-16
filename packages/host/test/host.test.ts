@@ -267,6 +267,43 @@ describe('goals and autonomous continuation', () => {
   });
 });
 
+describe('skills', () => {
+  it('seeds the bundled suite and the kernel reaches it through host requests', async () => {
+    const host = makeHost();
+    // bundled skills from the repo are seeded into the temp data dir
+    expect(host.skills.list().some((skill) => skill.name === 'tdd')).toBe(true);
+
+    const session = await host.manager.createSession({ title: 'skills-session' });
+    const listResult = await session.execConsole(
+      "[s['name'] for s in await rlm.skills.list()]",
+    );
+    expect(listResult.error).toBeNull();
+    expect(listResult.resultRepr).toContain('tdd');
+    expect(listResult.resultRepr).toContain('research');
+
+    const loadResult = await session.execConsole('await rlm.skills.load("tdd")');
+    expect(loadResult.error).toBeNull();
+    expect(loadResult.resultRepr).toContain('content');
+
+    const unknown = await session.execConsole('await rlm.skills.load("no-such-skill")');
+    expect(unknown.error?.type).toBe('HostError');
+  });
+
+  it('installs a workspace skill from inside the kernel', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'installer' });
+    const result = await session.execConsole(
+      'from pathlib import Path\n' +
+        'Path("newskill/SKILL.md").parent.mkdir(parents=True, exist_ok=True)\n' +
+        'Path("newskill/SKILL.md").write_text("---\\nname: newskill\\ndescription: Brand new\\n---\\n\\n# New\\n")\n' +
+        'await rlm.skills.install("newskill")',
+    );
+    expect(result.error).toBeNull();
+    expect(host.skills.has('newskill')).toBe(true);
+    expect(host.skills.load('newskill').content).toContain('# New');
+  });
+});
+
 describe('HTTP server', () => {
   it('serves the REST API end to end with the mock provider', async () => {
     const host = makeHost();
