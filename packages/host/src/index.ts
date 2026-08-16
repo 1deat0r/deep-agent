@@ -73,7 +73,7 @@ export function createHost(
 }
 
 export * from './types.js';
-export { loadConfig, DEFAULT_CONFIG, sessionsRoot } from './config.js';
+export { loadConfig, DEFAULT_CONFIG, sessionsRoot, defaultConfigPath } from './config.js';
 export { EventBus } from './events.js';
 export { AgentManager } from './manager.js';
 export { AgentSession } from './session.js';

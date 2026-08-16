@@ -65,7 +65,10 @@ export interface ConfigOverrides {
 export function loadConfig(overrides: ConfigOverrides = {}): HostConfig {
   let config = structuredClone(DEFAULT_CONFIG);
 
-  const envFile = process.env.DEEP_AGENT_CONFIG;
+  // Precedence (later wins): defaults → config file → env vars → overrides.
+  // The config file is DEEP_AGENT_CONFIG, falling back to the per-user
+  // default at ~/.config/deep-agent/config.json when it exists.
+  const envFile = process.env.DEEP_AGENT_CONFIG ?? defaultConfigPath();
   if (envFile && existsSync(envFile)) {
     try {
       const fileConfig = JSON.parse(readFileSync(envFile, 'utf8')) as Partial<HostConfig>;
@@ -105,4 +108,10 @@ export function loadConfig(overrides: ConfigOverrides = {}): HostConfig {
 
 export function sessionsRoot(config: HostConfig): string {
   return resolve(join(config.dataDir, 'sessions'));
+}
+
+/** Per-user config file location: ~/.config/deep-agent/config.json. */
+export function defaultConfigPath(): string {
+  const xdg = process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config');
+  return join(xdg, 'deep-agent', 'config.json');
 }
