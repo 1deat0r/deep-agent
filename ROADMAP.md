@@ -6,7 +6,7 @@ Deliberately out of scope for the MVP; listed so the gaps are explicit.
 
 - Kernel auto-restart on crash/exit, with namespace loss surfaced to the model.
 - Per-cell interrupts (SIGALRM timeout exists; mid-cell cancel does not).
-- Transcript compaction for long sessions; context-window guards.
+- Context-window guards beyond char thresholds (token-aware budgeting, per-message limits).
 - Daemon mode: sessions that keep running after the client disconnects
   (currently the process must stay up, which it does — but there is no detach).
 

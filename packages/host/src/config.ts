@@ -11,6 +11,8 @@ export const DEFAULT_CONFIG: HostConfig = {
   maxToolIterations: 60,
   maxAutoRounds: 10,
   execTimeoutMs: 0,
+  compactAtChars: 24000,
+  compactKeepChars: 8000,
   provider: {
     id: 'openai-compatible',
     baseUrl: 'https://api.deepseek.com',
@@ -51,6 +53,8 @@ export interface ConfigOverrides {
   maxToolIterations?: number;
   maxAutoRounds?: number;
   execTimeoutMs?: number;
+  compactAtChars?: number;
+  compactKeepChars?: number;
   provider?: Partial<HostConfig['provider']> & { id?: HostConfig['provider']['id'] };
 }
 

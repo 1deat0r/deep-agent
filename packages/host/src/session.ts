@@ -58,6 +58,9 @@ export interface TurnResult {
 
 const MAX_TOOL_RESULT_CHARS = 16_000;
 
+const COMPACTION_PROMPT =
+  'You are compacting a conversation for a context handoff. Summarize the conversation below so a fresh agent can continue seamlessly. Preserve: the current objective, decisions made and why, the state of files in the workspace, open questions, and exactly what remains to be done. Drop verbatim tool output, cell code, and pleasantries. Write only the summary.';
+
 function formatToolResult(result: ExecResult): string {
   const parts: string[] = [];
   if (result.stdout) parts.push(`[stdout]\n${result.stdout}`);
@@ -227,20 +230,8 @@ export class AgentSession {
     this.abort = new AbortController();
     const client = this.deps.createClient({ role: this.meta.role });
 
-    const messages: ChatMessage[] = [
-      {
-        role: 'system',
-        content: systemPrompt({
-          sessionId: this.id,
-          role: this.meta.role,
-          workspaceDir: this.workspaceDir,
-          parentName: this.parentName(),
-          goalObjective: this.meta.goal?.objective ?? null,
-          skills: this.deps.skills.list(),
-        }),
-      },
-      ...SessionStore.messagesFrom(this.transcript),
-    ];
+    await this.ensureCompacted(client);
+    const messages: ChatMessage[] = this.buildTurnMessages();
 
     let finalText = '';
     try {
@@ -324,6 +315,140 @@ export class AgentSession {
         });
       });
     }, 250);
+  }
+
+  // -- compaction ----------------------------------------------------------
+
+  private messageChars(messages: ChatMessage[]): number {
+    let total = 0;
+    for (const message of messages) {
+      total += (message.content ?? '').length;
+      for (const call of message.tool_calls ?? []) {
+        total += call.function.name.length + call.function.arguments.length;
+      }
+    }
+    return total;
+  }
+
+  private renderPrefix(messages: ChatMessage[]): string {
+    const lines = messages.slice(-40).map((message) => {
+      const who = message.name ? `${message.role}(${message.name})` : message.role;
+      const text =
+        message.role === 'tool'
+          ? `[tool result: ${(message.content ?? '').slice(0, 500)}]`
+          : (message.content ?? '');
+      return `[${who}] ${text}`;
+    });
+    const body = lines.join('\n\n');
+    return body.length > 30_000 ? body.slice(-30_000) : body;
+  }
+
+  /**
+   * When the transcript outgrows `compactAtChars`, summarize everything before
+   * the recent keep-window and append a compaction entry to the transcript.
+   * History is never rewritten — the marker is append-only and context
+   * rebuilds deterministically from it on resume.
+   */
+  private async ensureCompacted(client: LlmClient): Promise<void> {
+    // Only messages after the last compaction marker are part of the context;
+    // measuring the whole transcript would re-summarize already-compacted
+    // history on every turn.
+    let lastCompaction = -1;
+    for (let i = this.transcript.length - 1; i >= 0; i--) {
+      if (this.transcript[i]?.kind === 'compaction') {
+        lastCompaction = i;
+        break;
+      }
+    }
+    const all = SessionStore.messagesFrom(this.transcript.slice(lastCompaction + 1));
+    if (this.messageChars(all) <= this.deps.config.compactAtChars) return;
+
+    let keepStart = all.length;
+    let keepChars = 0;
+    for (let i = all.length - 1; i >= 0; i--) {
+      const message = all[i];
+      if (!message) break;
+      const chars =
+        (message.content ?? '').length +
+        (message.tool_calls ?? []).reduce((n, call) => n + call.function.arguments.length, 0);
+      if (keepChars > 0 && keepChars + chars > this.deps.config.compactKeepChars) break;
+      keepChars += chars;
+      keepStart = i;
+    }
+    const prefix = all.slice(0, keepStart);
+    if (prefix.length === 0) return;
+
+    let summary = '';
+    try {
+      for await (const chunk of client.streamChat([
+        { role: 'system', content: COMPACTION_PROMPT },
+        { role: 'user', content: this.renderPrefix(prefix) },
+      ])) {
+        if (chunk.type === 'delta') summary += chunk.content;
+        if (chunk.type === 'error') throw new Error(chunk.message);
+        if (chunk.type === 'done') break;
+      }
+    } catch {
+      // Summarization is best-effort: on failure, proceed with the full context.
+      return;
+    }
+    if (summary.trim() === '') return;
+    // The marker is append-only and lands at the transcript tail, so it must
+    // carry the cut position: the transcript index of the first kept message.
+    let messageCount = 0;
+    let from = this.transcript.length;
+    for (let i = lastCompaction + 1; i < this.transcript.length; i++) {
+      const entry = this.transcript[i];
+      if (entry?.kind !== 'message') continue;
+      if (messageCount === keepStart) {
+        from = i;
+        break;
+      }
+      messageCount += 1;
+    }
+    this.append({
+      kind: 'compaction',
+      summary: summary.trim(),
+      from,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  private buildTurnMessages(): ChatMessage[] {
+    const system: ChatMessage = {
+      role: 'system',
+      content: systemPrompt({
+        sessionId: this.id,
+        role: this.meta.role,
+        workspaceDir: this.workspaceDir,
+        parentName: this.parentName(),
+        goalObjective: this.meta.goal?.objective ?? null,
+        skills: this.deps.skills.list(),
+      }),
+    };
+    let lastCompaction = -1;
+    for (let i = this.transcript.length - 1; i >= 0; i--) {
+      if (this.transcript[i]?.kind === 'compaction') {
+        lastCompaction = i;
+        break;
+      }
+    }
+    if (lastCompaction === -1) {
+      return [system, ...SessionStore.messagesFrom(this.transcript)];
+    }
+    const marker = this.transcript[lastCompaction] as Extract<
+      TranscriptEntry,
+      { kind: 'compaction' }
+    >;
+    const after = this.transcript
+      .slice(marker.from)
+      .filter((entry): entry is TranscriptEntry & { kind: 'message' } => entry.kind === 'message')
+      .map(({ kind: _kind, ...message }) => message);
+    return [
+      system,
+      { role: 'system', content: `[earlier conversation summary]\n${marker.summary}` },
+      ...after,
+    ];
   }
 
   // -- LLM call ------------------------------------------------------------

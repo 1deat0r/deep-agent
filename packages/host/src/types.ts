@@ -51,6 +51,13 @@ export type TranscriptEntry =
       error: string | null;
       durationMs: number;
       timestamp: string;
+    }
+  | {
+      kind: 'compaction';
+      summary: string;
+      /** Transcript index of the first entry kept in the new context. */
+      from: number;
+      timestamp: string;
     };
 
 export type HostEvent =
@@ -93,6 +100,10 @@ export interface HostConfig {
   maxToolIterations: number;
   maxAutoRounds: number;
   execTimeoutMs: number;
+  /** Compact the LLM context when transcript messages exceed this many chars. */
+  compactAtChars: number;
+  /** Keep roughly this many chars of recent messages after compaction. */
+  compactKeepChars: number;
   provider: {
     id: 'openai-compatible' | 'mock';
     baseUrl?: string;

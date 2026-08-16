@@ -40,7 +40,9 @@ export class MockLlmClient implements LlmClient {
     tools?: ToolDef[],
     _options?: LlmRequestOptions,
   ): AsyncIterable<LlmChunk> {
-    this.calls.push({ messages, tools });
+    // Snapshot the input: callers commonly mutate the messages array after the
+    // call (pushing the assistant reply), which must not rewrite history.
+    this.calls.push({ messages: [...messages], tools });
     const script = this.queue.shift();
     if (!script) {
       yield { type: 'done', finishReason: 'stop' };

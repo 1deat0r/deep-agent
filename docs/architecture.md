@@ -96,6 +96,19 @@ directory of Agent-Skills packages (one `SKILL.md` per subdirectory):
   and instructs the model to `await rlm.skills.load(name)` before acting on a
   matching task.
 
+## Compaction
+
+When the messages that will be sent to the provider exceed `compactAtChars`,
+the session asks the model to summarize everything before a recent keep-window
+(`compactKeepChars`) and appends a **compaction entry** to the transcript. The
+entry is append-only and carries `from` — the transcript index of the first
+kept message — so the LLM context rebuilds deterministically on resume:
+`[system prompt, summary-as-system-message, ...messages from \`from\` onward]`.
+Only post-marker messages are measured on later turns, so already-compacted
+history is never re-summarized; if summarization fails, the turn proceeds with
+the full context. History in `transcript.jsonl` is never rewritten — the GUI
+and the session detail endpoint keep the complete record.
+
 ## Events and SSE
 
 `EventBus` emits typed `HostEvent`s (turn lifecycle, deltas, cells, children,
