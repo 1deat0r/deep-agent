@@ -80,9 +80,17 @@ host restart in this MVP).
 ## Events and SSE
 
 `EventBus` emits typed `HostEvent`s (turn lifecycle, deltas, cells, children,
-goals, errors) and keeps a 500-event replay buffer per session. `GET
+goals, errors, deletions) and keeps a 500-event replay buffer per session. `GET
 /api/sessions/:id/events` replays the buffer, then streams live events; the web
 GUI rebuilds its view from the snapshot endpoint plus this stream.
+
+## Deletion
+
+`DELETE /api/sessions/:id` removes the session, its children (cascade), and
+their on-disk directories; returns 404 for unknown ids and emits
+`session_deleted` for every removed session. Deleted sessions stop writing:
+`append`/`touch` are no-ops once a session is disposed, so a queued turn can
+never recreate a deleted directory.
 
 ## Trust model
 
