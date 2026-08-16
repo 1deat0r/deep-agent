@@ -58,3 +58,15 @@ understanding of the full tree.
   only when `DEEP_AGENT_UPDATE_FEED` is set — AppImage then updates silently
   on quit, the `.deb` shows a download notice pointing at
   `DEEP_AGENT_DOWNLOADS_URL`.
+- 2026-08-17 verified: `release/deep-agent-0.1.0.AppImage` and
+  `release/deep-agent_0.1.0_amd64.deb` build on this machine (electron-builder
+  bundled its own fpm/AppImage tooling, as researched); deb metadata checks
+  out (package `deep-agent`, amd64, maintainer, homepage) and bundles the GUI
+  at `/opt/deep-agent/resources/web/`; the packaged AppImage was run headlessly
+  under xvfb — embedded host serves `/api/health` and the bundled GUI. Notes:
+  `executableName`/deb `artifactName` had to be pinned because the scoped
+  package name produces invalid artifact paths; `homepage` is the RFC-2606
+  placeholder `https://deep-agent.invalid` until a remote exists; icon is the
+  default Electron one (branding later). One packaging bug was fixed along the
+  way: `electron-updater` is CJS, so the ESM main must default-import it
+  (named imports fail inside the asar).
