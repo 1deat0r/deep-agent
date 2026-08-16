@@ -26,6 +26,17 @@ Electron could also edit the file directly from the main process.
   as today; no keychain dependency. (Tray menu contents and close behavior
   were settled in the same round; recorded on the map.)
 
+- 2026-08-17 implementation slice 1 (branch `desktop-shell`): the deep module
+  behind the decision landed in `packages/host/src/config-write.ts` —
+  `mergeProviderSettings` (runtime-validated merge of the four provider
+  fields, `{config, changed}`, typed `ConfigWriteError` with a `field` for
+  GUI highlighting, key required for `openai-compatible`, input never
+  mutated), `writeConfigFile` (atomic tmp+rename, 0600, dirs created,
+  original untouched on failure), `providerEnvOverrides` (env-shadowing
+  notice). 26 tests in `packages/host/test/config-write.test.ts`; exported
+  from `@deep-agent/host`. Next: preload bridge + main-process restart
+  wiring + Settings modal form.
+
 ## Answer
 
 Resolved 2026-08-17 across three grilling rounds; the user confirmed shared

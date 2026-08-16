@@ -76,6 +76,13 @@ export function createHost(
 
 export * from './types.js';
 export { loadConfig, DEFAULT_CONFIG, sessionsRoot, defaultConfigPath } from './config.js';
+export {
+  ConfigWriteError,
+  mergeProviderSettings,
+  writeConfigFile,
+  providerEnvOverrides,
+} from './config-write.js';
+export type { ProviderSettingsMerge, ProviderEnvOverride } from './config-write.js';
 export { EventBus } from './events.js';
 export { AgentManager } from './manager.js';
 export { AgentSession } from './session.js';
