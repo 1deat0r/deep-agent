@@ -32,6 +32,10 @@ export interface KernelOptions {
   workspaceDir: string;
   /** Per-cell timeout in ms; 0 disables (POSIX only, SIGALRM-based). */
   execTimeoutMs: number | undefined;
+  /** How many times an unexpectedly-exited kernel is respawned on demand. */
+  maxRestarts: number | undefined;
+  /** Called just before respawning a crashed kernel, with the exit reason. */
+  onRestart: ((reason: string) => void) | undefined;
   /**
    * Handler for kernel-side host requests (rlm child spawns, goals, messages).
    * Resolving writes the payload back to the kernel; a rejected promise sends
@@ -77,11 +81,12 @@ export class KernelManager {
   private buffer = '';
   private pending = new Map<string, PendingExec>();
   private execCounter = 0;
-  private readyPromise: Promise<void>;
-  private readyResolve!: () => void;
-  private readyReject!: (error: Error) => void;
-  private started = false;
-  private exited = false;
+  private readyPromise: Promise<void> | null = null;
+  private readyResolve: (() => void) | null = null;
+  private readyReject: ((error: Error) => void) | null = null;
+  private starting: Promise<void> | null = null;
+  private restarts = 0;
+  private lastExitReason = '';
   private disposed = false;
 
   constructor(options: KernelOptions) {
@@ -90,16 +95,21 @@ export class KernelManager {
       ...options,
       pythonPath: options.pythonPath ?? process.env.DEEP_AGENT_PYTHON ?? 'python3',
       runtimeDir: options.runtimeDir ?? defaultRuntimeDir(),
+      maxRestarts: options.maxRestarts ?? 3,
     };
-    this.readyPromise = new Promise((resolve, reject) => {
-      this.readyResolve = resolve;
-      this.readyReject = reject;
-    });
   }
 
   async start(): Promise<void> {
-    if (this.started) return;
-    this.started = true;
+    if (this.starting) return this.starting;
+    this.starting = this.spawnAndWait();
+    try {
+      await this.starting;
+    } finally {
+      this.starting = null;
+    }
+  }
+
+  private async spawnAndWait(): Promise<void> {
     const { pythonPath, runtimeDir, sessionId, sessionDir, workspaceDir, execTimeoutMs } =
       this.options;
     const env = {
@@ -126,17 +136,25 @@ export class KernelManager {
     });
     this.child = child;
     this.buffer = '';
+    this.readyPromise = new Promise((resolve, reject) => {
+      this.readyResolve = resolve;
+      this.readyReject = reject;
+    });
 
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk: string) => this.consume(chunk));
     child.on('error', (error) => {
-      this.readyReject(new Error(`kernel process error: ${error.message}`));
+      this.readyReject?.(new Error(`kernel process error: ${error.message}`));
       this.failAll(new Error(`kernel process error: ${error.message}`));
+      this.child = null;
     });
     child.on('exit', (code, signal) => {
-      this.exited = true;
-      this.readyReject(new Error(`kernel exited before ready (code=${code}, signal=${signal})`));
-      this.failAll(new Error(`kernel process exited (code=${code}, signal=${signal})`));
+      const reason = `code=${code}, signal=${signal}`;
+      this.lastExitReason = reason;
+      if (!this.disposed) {
+        this.readyReject?.(new Error(`kernel exited before ready (${reason})`));
+        this.failAll(new Error(`kernel process exited (${reason})`));
+      }
       this.child = null;
     });
     await Promise.race([
@@ -168,7 +186,7 @@ export class KernelManager {
     }
     switch (message.type) {
       case 'ready':
-        this.readyResolve();
+        this.readyResolve?.();
         break;
       case 'result': {
         const id = typeof message.id === 'string' ? message.id : '';
@@ -222,10 +240,26 @@ export class KernelManager {
     this.pending.clear();
   }
 
-  /** Execute one cell of Python in the kernel's persistent namespace. */
+  /**
+   * Execute one cell of Python in the kernel's persistent namespace. If the
+   * kernel process exited unexpectedly, it is respawned first (up to
+   * `maxRestarts` times); the crashed cell itself is never auto-retried, and
+   * namespace loss is signalled through `onRestart`.
+   */
   async exec(code: string): Promise<ExecResult> {
-    if (this.exited) throw new Error('kernel process exited');
-    if (!this.child) throw new Error('kernel not started');
+    if (this.disposed) throw new Error('kernel disposed');
+    if (!this.child) {
+      if (this.restarts >= (this.options.maxRestarts ?? 0)) {
+        throw new Error(
+          `kernel process exited (${this.lastExitReason || 'unknown'}) and the restart limit is reached`,
+        );
+      }
+      this.restarts += 1;
+      const reason = this.lastExitReason || 'unknown reason';
+      this.lastExitReason = '';
+      this.options.onRestart?.(reason);
+      await this.start();
+    }
     const id = `exec-${++this.execCounter}-${Date.now()}`;
     const promise = new Promise<ExecResult>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -243,7 +277,6 @@ export class KernelManager {
     if (this.disposed) return;
     this.disposed = true;
     const child = this.child;
-    this.exited = true;
     if (!child) return;
     this.child = null;
     this.failAll(new Error('kernel disposed'));

@@ -224,6 +224,35 @@ describe('rlm children', () => {
   });
 });
 
+describe('kernel restart', () => {
+  it('restarts a crashed kernel mid-turn, tells the model state was lost, and continues', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'crashy' });
+    rootScripts.push(
+      toolCallTurn('ipython', { code: 'import os\nos._exit(7)' }, 'call-crash'),
+      toolCallTurn('ipython', { code: '21 * 2' }, 'call-after'),
+      textTurn('recovered and finished'),
+    );
+    const restarts: string[] = [];
+    host.events.on((event) => {
+      if (event.type === 'kernel_restarted') restarts.push(event.reason);
+    });
+
+    const result = await session.runTurn({ content: 'crash the kernel, then keep going' });
+    expect(result.ok).toBe(true);
+    expect(result.summary).toBe('recovered and finished');
+    expect(restarts).toHaveLength(1);
+    expect(restarts[0]).toContain('code=7');
+    const notice = session.transcript.find(
+      (entry) =>
+        entry.kind === 'message' &&
+        entry.role === 'system' &&
+        (entry.content ?? '').includes('kernel crashed'),
+    );
+    expect(notice).toBeDefined();
+  });
+});
+
 describe('goals and autonomous continuation', () => {
   it('auto-continues until the round limit, then blocks the goal', async () => {
     const host = makeHost({ maxAutoRounds: 2 });

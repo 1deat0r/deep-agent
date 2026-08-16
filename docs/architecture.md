@@ -65,6 +65,15 @@ The kernel blocks during `exec`; while a cell awaits a bridge call, the bridge
 reads stdin itself. Protocol writes bypass any active stdout redirect so cell
 output can never corrupt the wire.
 
+## Kernel resilience
+
+A cell that kills the kernel process (e.g. `os._exit`) fails that cell only —
+the turn survives, the model is told the kernel will restart on its next call,
+and the next `ipython` exec respawns the process (up to `maxKernelRestarts`
+per session). Each respawn emits `kernel_restarted` and appends a system
+message to the transcript warning that all Python state was lost, so the model
+re-establishes what the task needs instead of silently trusting stale state.
+
 ## Persistence
 
 `dataDir/sessions/<id>/`:

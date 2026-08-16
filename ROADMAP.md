@@ -4,7 +4,6 @@ Deliberately out of scope for the MVP; listed so the gaps are explicit.
 
 ## Reliability
 
-- Kernel auto-restart on crash/exit, with namespace loss surfaced to the model.
 - Per-cell interrupts (SIGALRM timeout exists; mid-cell cancel does not).
 - Context-window guards beyond char thresholds (token-aware budgeting, per-message limits).
 - Daemon mode: sessions that keep running after the client disconnects

@@ -533,7 +533,34 @@ export class AgentSession {
       };
     }
     const kernel = await this.ensureKernel();
-    const result = await kernel.exec(code);
+    let result: ExecResult;
+    try {
+      result = await kernel.exec(code);
+    } catch (error) {
+      // A crashed kernel rejects the pending cell. The turn survives: the cell
+      // is recorded as failed, the model is told the kernel will restart on
+      // its next call, and the next exec() respawns it.
+      const message = error instanceof Error ? error.message : String(error);
+      const cell: TranscriptEntry & { kind: 'cell' } = {
+        kind: 'cell',
+        code,
+        stdout: '',
+        stderr: '',
+        resultRepr: null,
+        error: `kernel crashed: ${message}`,
+        durationMs: 0,
+        timestamp: new Date().toISOString(),
+      };
+      this.append(cell);
+      this.deps.events.emit({ type: 'cell_result', sessionId: this.id, cell });
+      const toolMessage: ChatMessage = {
+        role: 'tool',
+        tool_call_id: call.id,
+        content: `error: ${message} — the kernel process died and will restart on your next ipython call; Python state was lost.`,
+      };
+      this.append({ kind: 'message', ...toolMessage });
+      return toolMessage;
+    }
     const cell: TranscriptEntry & { kind: 'cell' } = {
       kind: 'cell',
       code,
@@ -566,6 +593,15 @@ export class AgentSession {
       pythonPath: this.deps.config.pythonPath,
       runtimeDir: this.deps.config.pythonDir,
       execTimeoutMs: this.deps.config.execTimeoutMs,
+      maxRestarts: this.deps.config.maxKernelRestarts,
+      onRestart: (reason) => {
+        this.append({
+          kind: 'message',
+          role: 'system',
+          content: `[system] the Python kernel crashed (${reason}) and was restarted — all Python state (variables, imports, functions) was lost. Re-establish what the task needs.`,
+        });
+        this.deps.events.emit({ type: 'kernel_restarted', sessionId: this.id, reason });
+      },
       onHostRequest: (request) => this.handleHostRequest(request),
       onRawLine: undefined,
     });

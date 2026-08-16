@@ -79,6 +79,7 @@ export type HostEvent =
   | { type: 'child_finished'; sessionId: string; childId: string; summary: string }
   | { type: 'goal_updated'; sessionId: string; goal: GoalState }
   | { type: 'session_deleted'; sessionId: string }
+  | { type: 'kernel_restarted'; sessionId: string; reason: string }
   | { type: 'error'; sessionId: string; message: string };
 
 export interface SessionDetail {
@@ -100,6 +101,8 @@ export interface HostConfig {
   maxToolIterations: number;
   maxAutoRounds: number;
   execTimeoutMs: number;
+  /** Respawn an unexpectedly-exited kernel this many times per session. */
+  maxKernelRestarts: number;
   /** Compact the LLM context when transcript messages exceed this many chars. */
   compactAtChars: number;
   /** Keep roughly this many chars of recent messages after compaction. */

@@ -11,6 +11,7 @@ export const DEFAULT_CONFIG: HostConfig = {
   maxToolIterations: 60,
   maxAutoRounds: 10,
   execTimeoutMs: 0,
+  maxKernelRestarts: 3,
   compactAtChars: 24000,
   compactKeepChars: 8000,
   provider: {
@@ -53,6 +54,7 @@ export interface ConfigOverrides {
   maxToolIterations?: number;
   maxAutoRounds?: number;
   execTimeoutMs?: number;
+  maxKernelRestarts?: number;
   compactAtChars?: number;
   compactKeepChars?: number;
   provider?: Partial<HostConfig['provider']> & { id?: HostConfig['provider']['id'] };

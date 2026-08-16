@@ -115,11 +115,31 @@ describe('KernelManager (real subprocess)', () => {
     await expect(kernel.start()).rejects.toThrow(/kernel/);
   });
 
-  it('rejects execs after the kernel exits', async () => {
-    const { kernel } = makeKernel();
+  it('restarts a crashed kernel on the next exec and loses state', async () => {
+    const restarts: string[] = [];
+    const { kernel } = makeKernel({
+      onRestart: (reason) => restarts.push(reason),
+    });
     await kernel.start();
-    await expect(kernel.exec('import os\nos._exit(3)')).rejects.toThrow();
+    await kernel.exec('x = 41');
+    await expect(kernel.exec('import os\nos._exit(3)')).rejects.toThrow(/exited/);
+    // give the exit handler a beat to clear the child
     await new Promise((resolve) => setTimeout(resolve, 200));
-    await expect(kernel.exec('1+1')).rejects.toThrow(/exited/);
+    // the next exec respawns the kernel; state is gone
+    const fresh = await kernel.exec(
+      'def _probe():\n    try:\n        return x\n    except NameError:\n        return "state lost"\n_probe()',
+    );
+    expect(fresh.error).toBeNull();
+    expect(fresh.resultRepr).toContain('state lost');
+    expect(restarts).toHaveLength(1);
+    expect(restarts[0]).toContain('code=3');
+  });
+
+  it('stops restarting after the limit is reached', async () => {
+    const { kernel } = makeKernel({ maxRestarts: 0 });
+    await kernel.start();
+    await expect(kernel.exec('import os\nos._exit(3)')).rejects.toThrow(/exited/);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await expect(kernel.exec('1+1')).rejects.toThrow(/restart limit/);
   });
 });
