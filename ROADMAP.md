@@ -1,10 +1,9 @@
 # Roadmap
 
-Deliberately out of scope for the MVP; listed so the gaps are explicit.
+Deliberately out of scope so far; listed so the gaps are explicit.
 
 ## Reliability
 
-- Context-window guards beyond char thresholds (token-aware budgeting, per-message limits).
 - Daemon mode: sessions that keep running after the client disconnects
   (currently the process must stay up, which it does — but there is no detach).
 

@@ -9,7 +9,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "skills"],
+  "files": [
+    "dist",
+    "skills"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
@@ -17,6 +20,7 @@
   },
   "dependencies": {
     "@deep-agent/kernel": "workspace:*",
-    "@deep-agent/provider": "workspace:*"
+    "@deep-agent/provider": "workspace:*",
+    "js-tiktoken": "^1.0.21"
   }
 }

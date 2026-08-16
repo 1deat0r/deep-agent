@@ -114,16 +114,20 @@ directory of Agent-Skills packages (one `SKILL.md` per subdirectory):
 
 ## Compaction
 
-When the messages that will be sent to the provider exceed `compactAtChars`,
-the session asks the model to summarize everything before a recent keep-window
-(`compactKeepChars`) and appends a **compaction entry** to the transcript. The
-entry is append-only and carries `from` — the transcript index of the first
-kept message — so the LLM context rebuilds deterministically on resume:
-`[system prompt, summary-as-system-message, ...messages from \`from\` onward]`.
+When the messages that will be sent to the provider exceed `compactAtTokens`
+(counted with a real BPE tokenizer — js-tiktoken's cl100k_base, falling back to
+a chars/4 estimator), the session asks the model to summarize everything before
+a recent keep-window (`compactKeepTokens`) and appends a **compaction entry** to
+the transcript. The entry is append-only and carries `from` — the transcript
+index of the first kept message — so the LLM context rebuilds deterministically
+on resume: `[system prompt, summary-as-system-message, ...messages from \`from\`
+onward]`. Tool messages stay paired with the assistant call that issued them.
 Only post-marker messages are measured on later turns, so already-compacted
 history is never re-summarized; if summarization fails, the turn proceeds with
-the full context. History in `transcript.jsonl` is never rewritten — the GUI
-and the session detail endpoint keep the complete record.
+the full context. `contextWindowTokens` (default 60k for deepseek-chat's 64k
+window) is the budgeting reference the thresholds derive from. History in
+`transcript.jsonl` is never rewritten — the GUI and the session detail endpoint
+keep the complete record.
 
 ## Events and SSE
 

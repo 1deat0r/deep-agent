@@ -6,8 +6,10 @@
   "maxToolIterations": 60,
   "maxAutoRounds": 10,
   "execTimeoutMs": 0,
-  "compactAtChars": 24000,
-  "compactKeepChars": 8000,
+  "maxKernelRestarts": 3,
+  "contextWindowTokens": 60000,
+  "compactAtTokens": 24000,
+  "compactKeepTokens": 8000,
   "provider": {
     "id": "openai-compatible",
     "baseUrl": "https://api.deepseek.com",

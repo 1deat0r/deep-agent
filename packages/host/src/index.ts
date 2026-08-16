@@ -83,3 +83,4 @@ export { systemPrompt } from './system-prompt.js';
 export { EchoLlmClient } from './mock-client.js';
 export { defaultBundledSkillsDir, SkillsRegistry } from './skills.js';
 export type { SkillContent, SkillInfo } from './skills.js';
+export { estimateTokens } from './tokens.js';

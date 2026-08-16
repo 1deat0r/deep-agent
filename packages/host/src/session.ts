@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { isAbsolute, join } from 'node:path';
 import type { ChatMessage, LlmClient, ToolCall } from '@deep-agent/provider';
 import { KernelManager, type ExecResult, type HostRequest } from '@deep-agent/kernel';
+import { estimateTokens } from './tokens.js';
 import { IPYTHON_TOOL } from './types.js';
 import type {
   ChildSummary,
@@ -322,12 +323,12 @@ export class AgentSession {
 
   // -- compaction ----------------------------------------------------------
 
-  private messageChars(messages: ChatMessage[]): number {
+  private messageTokens(messages: ChatMessage[]): number {
     let total = 0;
     for (const message of messages) {
-      total += (message.content ?? '').length;
+      total += estimateTokens(message.content ?? '');
       for (const call of message.tool_calls ?? []) {
-        total += call.function.name.length + call.function.arguments.length;
+        total += estimateTokens(call.function.name) + estimateTokens(call.function.arguments);
       }
     }
     return total;
@@ -364,18 +365,21 @@ export class AgentSession {
       }
     }
     const all = SessionStore.messagesFrom(this.transcript.slice(lastCompaction + 1));
-    if (this.messageChars(all) <= this.deps.config.compactAtChars) return;
+    if (this.messageTokens(all) <= this.deps.config.compactAtTokens) return;
 
     let keepStart = all.length;
-    let keepChars = 0;
+    let keepTokens = 0;
     for (let i = all.length - 1; i >= 0; i--) {
       const message = all[i];
       if (!message) break;
-      const chars =
-        (message.content ?? '').length +
-        (message.tool_calls ?? []).reduce((n, call) => n + call.function.arguments.length, 0);
-      if (keepChars > 0 && keepChars + chars > this.deps.config.compactKeepChars) break;
-      keepChars += chars;
+      const tokens =
+        estimateTokens(message.content ?? '') +
+        (message.tool_calls ?? []).reduce(
+          (n, call) => n + estimateTokens(call.function.arguments),
+          0,
+        );
+      if (keepTokens > 0 && keepTokens + tokens > this.deps.config.compactKeepTokens) break;
+      keepTokens += tokens;
       keepStart = i;
     }
     // Tool messages must stay paired with the assistant message that issued

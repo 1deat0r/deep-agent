@@ -104,10 +104,12 @@ export interface HostConfig {
   execTimeoutMs: number;
   /** Respawn an unexpectedly-exited kernel this many times per session. */
   maxKernelRestarts: number;
-  /** Compact the LLM context when transcript messages exceed this many chars. */
-  compactAtChars: number;
-  /** Keep roughly this many chars of recent messages after compaction. */
-  compactKeepChars: number;
+  /** The model's context window in tokens (budgeting headroom applied). */
+  contextWindowTokens: number;
+  /** Compact the LLM context when the messages exceed this many tokens. */
+  compactAtTokens: number;
+  /** Keep roughly this many tokens of recent messages after compaction. */
+  compactKeepTokens: number;
   provider: {
     id: 'openai-compatible' | 'mock';
     baseUrl?: string;

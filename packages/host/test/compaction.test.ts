@@ -52,7 +52,7 @@ async function fillOldExchanges(session: { append: (entry: unknown) => void }, c
 
 describe('compaction', () => {
   it('does nothing under the threshold', async () => {
-    const host = makeHost({ compactAtChars: 1_000_000 });
+    const host = makeHost({ compactAtTokens: 250_000 });
     const session = await host.manager.createSession({ title: 'small' });
     rootScripts.push(textTurn('plain answer'));
     await session.runTurn({ content: 'hello' });
@@ -63,7 +63,7 @@ describe('compaction', () => {
   });
 
   it('summarizes the prefix and swaps it for a marker when over the threshold', async () => {
-    const host = makeHost({ compactAtChars: 800, compactKeepChars: 200 });
+    const host = makeHost({ compactAtTokens: 200, compactKeepTokens: 50 });
     const session = await host.manager.createSession({ title: 'big' });
     await fillOldExchanges(session, 6);
     rootScripts.push(textTurn('COMPACTED SUMMARY TEXT'));
@@ -93,7 +93,7 @@ describe('compaction', () => {
   });
 
   it('rebuilds context from a prior marker (resume-safe)', async () => {
-    const host = makeHost({ compactAtChars: 800, compactKeepChars: 200 });
+    const host = makeHost({ compactAtTokens: 200, compactKeepTokens: 50 });
     const session = await host.manager.createSession({ title: 'resume' });
     await fillOldExchanges(session, 5);
     session.append({
@@ -117,7 +117,7 @@ describe('compaction', () => {
   });
 
   it('compacts mid-turn when a tool result pushes the context over the threshold', async () => {
-    const host = makeHost({ compactAtChars: 400, compactKeepChars: 150 });
+    const host = makeHost({ compactAtTokens: 100, compactKeepTokens: 40 });
     const session = await host.manager.createSession({ title: 'mid-turn' });
     rootScripts.push(
       toolCallTurn('ipython', { code: "print('PRINT_HHHH_CODE' + 'h' * 1200)" }),
@@ -147,7 +147,7 @@ describe('compaction', () => {
   });
 
   it('proceeds uncompacted when summarization fails', async () => {
-    const host = makeHost({ compactAtChars: 800, compactKeepChars: 200 });
+    const host = makeHost({ compactAtTokens: 200, compactKeepTokens: 50 });
     const session = await host.manager.createSession({ title: 'fail-safe' });
     await fillOldExchanges(session, 6);
     rootScripts.push([{ type: 'error', message: 'provider down' }]);
