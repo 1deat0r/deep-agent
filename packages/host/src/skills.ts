@@ -40,7 +40,6 @@ function parseFrontmatter(text: string): {
     ) {
       value = value.slice(1, -1);
     }
-    if (value.startsWith('>-')) value = value.slice(2).trim();
     if (key === 'name' || key === 'description') out[key] = value;
   }
   return { name: out.name, description: out.description };
@@ -145,12 +144,12 @@ export class SkillsRegistry {
       throw new Error(`no SKILL.md found at ${source}`);
     }
     const text = readFileSync(join(source, 'SKILL.md'), 'utf8');
-    const { name } = parseFrontmatter(text);
+    const { name, description } = parseFrontmatter(text);
     const safe = requireSafeName(name ?? basename(source));
     if (existsSync(join(this.dir, safe))) {
       throw new Error(`skill "${safe}" is already installed`);
     }
     cpSync(source, join(this.dir, safe), { recursive: true });
-    return { name: safe, description: parseFrontmatter(text).description ?? '' };
+    return { name: safe, description: description ?? '' };
   }
 }

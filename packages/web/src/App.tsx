@@ -283,6 +283,22 @@ export function App(): JSX.Element {
         void reconcile();
       });
 
+      addEvent(es, 'session_deleted', (data) => {
+        // Remove from the sidebar list regardless of which session it was.
+        setSessions((prev) => prev.filter((s) => s.id !== data.sessionId));
+        if (data.sessionId === selectedId) {
+          setSelectedId(null);
+          setDetail(null);
+          setDraft('');
+          streamedRef.current = false;
+        } else {
+          // A child of this session was deleted; drop it from the children list.
+          setDetail((prev) =>
+            prev ? { ...prev, children: prev.children.filter((c) => c.id !== data.sessionId) } : prev,
+          );
+        }
+      });
+
       addEvent(es, 'error', (data) => {
         pushToast('error', data.message);
       });
@@ -371,9 +387,11 @@ export function App(): JSX.Element {
     try {
       await deleteSession(selectedId);
       setSelectedId(null);
-      await loadSessions();
     } catch (err) {
+      // DELETE returns 404 for unknown sessions; resync either way.
       pushToast('error', err instanceof Error ? err.message : String(err));
+    } finally {
+      await loadSessions();
     }
   }, [selectedId, loadSessions, pushToast]);
 

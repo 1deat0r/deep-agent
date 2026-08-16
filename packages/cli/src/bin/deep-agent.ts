@@ -31,10 +31,11 @@ Environment:
 interface ParsedArgs {
   config?: string;
   overrides: Record<string, unknown>;
+  positionals: string[];
 }
 
-function parseArgs(argv: string[]): ParsedArgs {
-  const out: ParsedArgs = { overrides: {} };
+function parseArgs(argv: string[], options: { allowPositionals?: boolean } = {}): ParsedArgs {
+  const out: ParsedArgs = { overrides: {}, positionals: [] };
   const valueFlags = new Set([
     '--config',
     '--port',
@@ -46,6 +47,13 @@ function parseArgs(argv: string[]): ParsedArgs {
   ]);
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i] ?? '';
+    if (!flag.startsWith('--')) {
+      if (options.allowPositionals) {
+        out.positionals.push(flag);
+        continue;
+      }
+      throw new Error(`unexpected argument: ${flag}`);
+    }
     if (!valueFlags.has(flag)) {
       throw new Error(`unknown argument: ${flag}`);
     }
@@ -133,22 +141,11 @@ async function main(): Promise<void> {
 }
 
 async function runSkillsCommand(args: string[]): Promise<void> {
-  const [sub, ...rest] = args;
-  // flags before the subcommand values are accepted for convenience
-  const flags: Record<string, string> = {};
-  for (let i = 0; i < rest.length; i += 2) {
-    const flag = rest[i];
-    if (flag?.startsWith('--') && rest[i + 1] !== undefined) {
-      flags[flag] = rest[i + 1] ?? '';
-    }
-  }
-  if (flags['--config']) process.env.DEEP_AGENT_CONFIG = resolve(flags['--config']);
-  const config = loadConfig(
-    (flags['--data-dir'] ? { dataDir: flags['--data-dir'] } : {}) as Parameters<
-      typeof loadConfig
-    >[0],
-  );
+  const parsed = parseArgs(args, { allowPositionals: true });
+  if (parsed.config) process.env.DEEP_AGENT_CONFIG = resolve(parsed.config);
+  const config = loadConfig(parsed.overrides as Parameters<typeof loadConfig>[0]);
   const host = createHost(config);
+  const [sub, ...positionals] = parsed.positionals;
 
   switch (sub) {
     case 'list': {
@@ -160,7 +157,7 @@ async function runSkillsCommand(args: string[]): Promise<void> {
       return;
     }
     case 'install': {
-      const source = rest[0];
+      const source = positionals[0];
       if (!source) throw new Error('skills install requires a source directory');
       const installed = host.skills.install(source);
       console.log(`installed ${installed.name} from ${resolve(source)}`);

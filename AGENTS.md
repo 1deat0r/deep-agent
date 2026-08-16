@@ -69,8 +69,8 @@ model surface before changing the loop.
   content loads on demand via `rlm.skills.load(name)`. When you add or rename a
   skill's description in `skills/`, the prompt changes with it — no code edit.
 - Installing a skill is a host-side copy: relative paths resolve against the
-  session workspace, names must match `[a-z0-9-]+` (no traversal), and the
-  source must contain `SKILL.md`.
+  session workspace, names must match `^[a-z0-9][a-z0-9-]*$` (case-insensitive,
+  no traversal), and the source must contain `SKILL.md`.
 
 ## Agent skills
 
