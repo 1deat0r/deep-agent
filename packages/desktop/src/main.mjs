@@ -7,6 +7,11 @@ import { createHost, loadConfig } from '@deep-agent/host';
 const PORT = Number(process.env.DEEP_AGENT_PORT ?? 3824);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
+// Wayland + Vulkan is incompatible in Electron 43's GPU path; the window is a
+// text UI, so render through XWayland without GPU acceleration.
+app.commandLine.appendSwitch('ozone-platform', 'x11');
+app.disableHardwareAcceleration();
+
 // Single instance: a second launch hands off and exits.
 if (!app.requestSingleInstanceLock()) {
   console.log('[desktop-prototype] another instance is running; exiting');
