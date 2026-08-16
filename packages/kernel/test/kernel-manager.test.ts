@@ -30,6 +30,22 @@ function makeKernel(extra: Partial<ConstructorParameters<typeof KernelManager>[0
 }
 
 describe('KernelManager (real subprocess)', () => {
+  it('interrupts a runaway cell and stays usable afterwards', async () => {
+    const { kernel } = makeKernel();
+    await kernel.start();
+    const started = Date.now();
+    const execPromise = kernel.exec('while True:\n    pass');
+    setTimeout(() => kernel.interrupt(), 400);
+    const result = await execPromise;
+    const elapsed = Date.now() - started;
+    expect(elapsed).toBeLessThan(5000);
+    expect(result.error?.message).toContain('interrupted by host');
+    // the kernel is still alive and state works
+    const next = await kernel.exec('2 + 2');
+    expect(next.error).toBeNull();
+    expect(next.resultRepr).toBe('4');
+  });
+
   it('starts, executes cells with persistent state, and disposes', async () => {
     const { kernel, workspaceDir } = makeKernel();
     await kernel.start();

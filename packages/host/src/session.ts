@@ -99,6 +99,7 @@ export class AgentSession {
   meta: SessionMeta;
   transcript: TranscriptEntry[];
   kernel: KernelManager | null = null;
+  private executingCell = false;
   private readonly deps: SessionDeps;
   private chain: Promise<void> = Promise.resolve();
   private abort: AbortController | null = null;
@@ -181,6 +182,8 @@ export class AgentSession {
 
   async interrupt(): Promise<void> {
     this.abort?.abort();
+    // Stop a runaway cell, not just the provider call.
+    if (this.executingCell) this.kernel?.interrupt();
   }
 
   /** Manual kernel console execution (used by the web console). */
@@ -541,6 +544,8 @@ export class AgentSession {
     }
     const kernel = await this.ensureKernel();
     let result: ExecResult;
+    this.executingCell = true;
+    this.deps.events.emit({ type: 'cell_start', sessionId: this.id, code });
     try {
       result = await kernel.exec(code);
     } catch (error) {
@@ -567,6 +572,8 @@ export class AgentSession {
       };
       this.append({ kind: 'message', ...toolMessage });
       return toolMessage;
+    } finally {
+      this.executingCell = false;
     }
     const cell: TranscriptEntry & { kind: 'cell' } = {
       kind: 'cell',

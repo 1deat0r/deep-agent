@@ -169,6 +169,33 @@ class KernelTest(unittest.TestCase):
         self.assertEqual(result["error"]["type"], "HostError")
         self.assertIn("host rejected", result["error"]["message"])
 
+    def test_interrupt_sigusr1(self):
+        if not hasattr(__import__("signal"), "SIGUSR1"):
+            self.skipTest("no SIGUSR1 on this platform")
+        kernel = Kernel(
+            lambda line: self.host.from_kernel.put(line),
+            self.host.to_kernel.get,
+            session_id="s-i",
+            session_dir=self.session_dir,
+            workspace_dir=self.workspace_dir,
+        )
+
+        def _interrupt_later():
+            time.sleep(0.3)
+            os.kill(os.getpid(), __import__("signal").SIGUSR1)
+
+        import threading
+        import time
+        import os
+
+        threading.Thread(target=_interrupt_later, daemon=True).start()
+        started = time.monotonic()
+        result = kernel._execute("while True:\n    pass")
+        elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 3, "interrupt did not stop the cell")
+        self.assertIsNotNone(result["error"])
+        self.assertIn("interrupted by host", result["error"]["message"])
+
     def test_namespace_survives_across_cells_with_functions(self):
         self.host.exec("def double(n):\n    return n * 2")
         result = self.host.exec("double(21)")

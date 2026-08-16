@@ -4,7 +4,6 @@ Deliberately out of scope for the MVP; listed so the gaps are explicit.
 
 ## Reliability
 
-- Per-cell interrupts (SIGALRM timeout exists; mid-cell cancel does not).
 - Context-window guards beyond char thresholds (token-aware budgeting, per-message limits).
 - Daemon mode: sessions that keep running after the client disconnects
   (currently the process must stay up, which it does — but there is no detach).

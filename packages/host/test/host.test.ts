@@ -253,6 +253,33 @@ describe('kernel restart', () => {
   });
 });
 
+describe('interrupt', () => {
+  it('stops a runaway cell and ends the turn as interrupted', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'interruptible' });
+    rootScripts.push(toolCallTurn('ipython', { code: 'while True:\n    pass' }, 'runaway'));
+    const cellStarted = new Promise<void>((resolve) => {
+      const off = host.events.on((event) => {
+        if (event.type === 'cell_start' && event.sessionId === session.id) {
+          off();
+          resolve();
+        }
+      });
+    });
+    const turn = session.runTurn({ content: 'run forever' });
+    // wait until the cell is actually executing
+    await cellStarted;
+    await session.interrupt();
+    const result = await turn;
+    expect(result.ok).toBe(true);
+    expect(result.summary).toBe('(interrupted by user)');
+    // the kernel survives and the session remains usable
+    const next = await session.execConsole('21 * 2');
+    expect(next.error).toBeNull();
+    expect(next.resultRepr).toBe('42');
+  });
+});
+
 describe('goals and autonomous continuation', () => {
   it('auto-continues until the round limit, then blocks the goal', async () => {
     const host = makeHost({ maxAutoRounds: 2 });

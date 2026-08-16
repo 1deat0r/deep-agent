@@ -272,6 +272,19 @@ export class KernelManager {
     return this.disposed;
   }
 
+  /**
+   * Interrupt the cell currently executing (POSIX only): SIGUSR1 unwinds the
+   * cell with an "interrupted by host" error. No-op when no cell is running.
+   */
+  interrupt(): void {
+    if (process.platform === 'win32') return;
+    try {
+      this.child?.kill('SIGUSR1');
+    } catch {
+      // child already gone; the pending exec rejects through the exit handler
+    }
+  }
+
   /** Stop the kernel: graceful shutdown message, then SIGKILL after a grace period. */
   async dispose(): Promise<void> {
     if (this.disposed) return;

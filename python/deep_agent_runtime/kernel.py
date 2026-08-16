@@ -40,6 +40,10 @@ def _truncate(text: str, limit: int) -> str:
     return text[:limit] + f"\n...[truncated {len(text) - limit} chars]"
 
 
+class CellInterrupted(Exception):
+    """Raised inside a running cell when the host asks the kernel to interrupt."""
+
+
 class Kernel:
     def __init__(
         self,
@@ -60,7 +64,24 @@ class Kernel:
         Path(workspace_dir).mkdir(parents=True, exist_ok=True)
         os.chdir(workspace_dir)
         self._ns: dict[str, Any] = {}
+        self._install_interrupt_handler()
         self._load_namespace()
+
+    def _install_interrupt_handler(self) -> None:
+        """SIGUSR1 interrupts the running cell (POSIX only, like the timeout).
+
+        The handler raises CellInterrupted; signal handlers run in the main
+        thread, which is where cells execute, so the exception unwinds the
+        cell and the pending exec reports "interrupted by host".
+        """
+        if not hasattr(signal, "SIGUSR1"):
+            return
+
+        def _on_interrupt(_signum: int, _frame: Any) -> None:
+            raise CellInterrupted("interrupted by host")
+
+        self._previous_usr1 = signal.getsignal(signal.SIGUSR1)
+        signal.signal(signal.SIGUSR1, _on_interrupt)
 
     def _load_namespace(self) -> None:
         """Preload the rlm bridge and small conveniences into the namespace."""

@@ -74,6 +74,13 @@ per session). Each respawn emits `kernel_restarted` and appends a system
 message to the transcript warning that all Python state was lost, so the model
 re-establishes what the task needs instead of silently trusting stale state.
 
+A runaway cell can be stopped mid-flight: the host sends `SIGUSR1` to the
+kernel process (POSIX only), the kernel's handler raises inside the cell, and
+the cell reports `interrupted by host` while the kernel — and its Python
+state — survives. `POST /api/sessions/:id/interrupt` aborts the provider call
+and interrupts an executing cell; the turn ends as `(interrupted by user)`.
+Cells announce themselves with a `cell_start` event before executing.
+
 ## Persistence
 
 `dataDir/sessions/<id>/`:

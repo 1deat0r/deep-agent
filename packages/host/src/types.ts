@@ -65,6 +65,7 @@ export type HostEvent =
   | { type: 'turn_start'; sessionId: string; turnId: string }
   | { type: 'turn_end'; sessionId: string; turnId: string; summary: string }
   | { type: 'message_delta'; sessionId: string; turnId: string; delta: string }
+  | { type: 'cell_start'; sessionId: string; code: string }
   | {
       type: 'message_complete';
       sessionId: string;
