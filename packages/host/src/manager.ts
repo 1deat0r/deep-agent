@@ -241,8 +241,25 @@ export class AgentManager {
     throw new Error(`unknown receiver_role "${payload.receiver_role}"`);
   }
 
+  async deleteSession(id: string): Promise<boolean> {
+    const session = this.sessions.get(id);
+    if (!session) return false;
+    await session.dispose();
+    this.sessions.delete(id);
+    this.childMeta.delete(id);
+    if (session.meta.parentId) {
+      const parent = this.sessions.get(session.meta.parentId);
+      if (parent) {
+        parent.meta.childIds = parent.meta.childIds.filter((childId) => childId !== id);
+        parent.touch();
+      }
+    }
+    this.store.removeSession(id);
+    return true;
+  }
+
   async disposeAll(): Promise<void> {
-    await Promise.all([...this.sessions.values()].map((session) => session.dispose()));
+    await Promise.allSettled([...this.sessions.values()].map((session) => session.dispose()));
     this.sessions.clear();
   }
 }

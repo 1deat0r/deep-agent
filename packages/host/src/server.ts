@@ -104,7 +104,10 @@ export class HostServer {
 
   async stop(): Promise<void> {
     if (!this.server) return;
-    await new Promise<void>((resolve) => this.server?.close(() => resolve()));
+    await new Promise<void>((resolve) => {
+      this.server?.close(() => resolve());
+      this.server?.closeAllConnections();
+    });
     this.server = null;
   }
 
@@ -190,7 +193,7 @@ export class HostServer {
         return;
       }
       if (req.method === 'DELETE') {
-        await session?.dispose();
+        await this.manager.deleteSession(sessionId);
         sendJson(res, 200, { ok: true });
         return;
       }

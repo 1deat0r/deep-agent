@@ -111,9 +111,14 @@ async function main(): Promise<void> {
 
   const shutdown = async (): Promise<void> => {
     console.log('\n[deep-agent] shutting down');
-    await host.manager.disposeAll();
-    await host.server.stop();
-    process.exit(0);
+    const hardExit = setTimeout(() => process.exit(0), 3000);
+    hardExit.unref();
+    try {
+      await host.manager.disposeAll();
+      await host.server.stop();
+    } finally {
+      process.exit(0);
+    }
   };
   process.on('SIGINT', () => void shutdown());
   process.on('SIGTERM', () => void shutdown());

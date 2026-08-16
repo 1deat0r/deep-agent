@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChatMessage } from '@deep-agent/provider';
 import type { SessionMeta, TranscriptEntry } from './types.js';
@@ -60,6 +60,12 @@ export class SessionStore {
     }
     metas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return metas;
+  }
+
+  /** Remove a session directory from disk. Idempotent. */
+  removeSession(id: string): void {
+    const dir = this.dirFor(id);
+    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
   }
 
   /** Extract the LLM-facing message list from transcript entries. */
