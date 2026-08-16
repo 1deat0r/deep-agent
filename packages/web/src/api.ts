@@ -1,5 +1,6 @@
 import type {
   AppConfig,
+  ModelsResponse,
   ExecResult,
   GoalState,
   SessionDetail,
@@ -45,8 +46,8 @@ export function getConfig(): Promise<AppConfig> {
   return apiFetch<AppConfig>('/api/config');
 }
 
-export function getModels(): Promise<{ models: string[]; default: string }> {
-  return apiFetch<{ models: string[]; default: string }>('/api/models');
+export function getModels(): Promise<ModelsResponse> {
+  return apiFetch<ModelsResponse>('/api/models');
 }
 
 export function getSkills(): Promise<{ dir: string; skills: SkillInfo[] }> {

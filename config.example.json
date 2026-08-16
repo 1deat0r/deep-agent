@@ -7,7 +7,6 @@
   "maxAutoRounds": 10,
   "execTimeoutMs": 0,
   "maxKernelRestarts": 3,
-  "contextWindowTokens": 60000,
   "compactAtTokens": 24000,
   "compactKeepTokens": 8000,
   "provider": {

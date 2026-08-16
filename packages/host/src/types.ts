@@ -89,6 +89,12 @@ export interface SessionDetail {
   children: ChildSummary[];
 }
 
+export interface ModelsResponse {
+  models: string[];
+  default: string;
+  error?: string;
+}
+
 export interface HostConfig {
   port: number;
   host: string;
@@ -104,8 +110,6 @@ export interface HostConfig {
   execTimeoutMs: number;
   /** Respawn an unexpectedly-exited kernel this many times per session. */
   maxKernelRestarts: number;
-  /** The model's context window in tokens (budgeting headroom applied). */
-  contextWindowTokens: number;
   /** Compact the LLM context when the messages exceed this many tokens. */
   compactAtTokens: number;
   /** Keep roughly this many tokens of recent messages after compaction. */

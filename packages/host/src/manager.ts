@@ -169,7 +169,7 @@ export class AgentManager {
       name: child.meta.title,
       content: `[child "${child.meta.title}" finished]\n${summary.slice(0, 4000)}`,
     });
-    this.wakeParent(parent, `Child "${child.meta.title}" reported back. Review its result, integrate it into the workspace if useful, and continue the task.`);
+    this.wakeParent(parent, `Child "${child.meta.title}" reported back. Review its result, integrate it into the workspace if useful, and continue the goal.`);
   }
 
   listChildren(parent: AgentSession): ChildSummary[] {

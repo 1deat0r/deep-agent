@@ -71,8 +71,9 @@ A cell that kills the kernel process (e.g. `os._exit`) fails that cell only —
 the turn survives, the model is told the kernel will restart on its next call,
 and the next `ipython` exec respawns the process (up to `maxKernelRestarts`
 per session). Each respawn emits `kernel_restarted` and appends a system
-message to the transcript warning that all Python state was lost, so the model
-re-establishes what the task needs instead of silently trusting stale state.
+message to the transcript warning that the kernel namespace was lost, so the
+model re-establishes what the goal needs instead of silently trusting a stale
+namespace.
 
 A runaway cell can be stopped mid-flight: the host sends `SIGUSR1` to the
 kernel process (POSIX only), the kernel's handler raises inside the cell, and
@@ -110,9 +111,10 @@ directory of Agent-Skills packages (one `SKILL.md` per subdirectory):
   names must match `[a-z0-9-]+`; duplicates and traversal attempts are rejected.
 - **Python-backed** — a skill may ship `python/<pkg>/` with a `python-package:`
   frontmatter field. Its directory is passed to the kernel at spawn
-  (`--extra-path`), so cells can `import` it directly; `skills_import` returns
-  the package's public functions (signatures + one-line docs) and registers
-  late-installed packages by inserting the path into the running kernel.
+  (`--extra-path`), so cells can `import` it directly; `skills_import`
+  returns the package location; the kernel inserts the path, imports it, and
+  reports the package's public functions (signatures + one-line docs) — which
+  also covers late-installed packages.
 - The system prompt carries the catalog (metadata only, descriptions truncated)
   and instructs the model to `await rlm.skills.load(name)` before acting on a
   matching task.
@@ -129,8 +131,8 @@ on resume: `[system prompt, summary-as-system-message, ...messages from \`from\`
 onward]`. Tool messages stay paired with the assistant call that issued them.
 Only post-marker messages are measured on later turns, so already-compacted
 history is never re-summarized; if summarization fails, the turn proceeds with
-the full context. `contextWindowTokens` (default 60k for deepseek-chat's 64k
-window) is the budgeting reference the thresholds derive from. History in
+the full context. The summarization prompt is bounded (last 40 messages, 30k chars) as a
+deliberate cap on the summarization call itself. History in
 `transcript.jsonl` is never rewritten — the GUI and the session detail endpoint
 keep the complete record.
 

@@ -133,3 +133,10 @@ export interface SkillInfo {
   name: string;
   description: string;
 }
+
+/** GET /api/models response. */
+export interface ModelsResponse {
+  models: string[];
+  default: string;
+  error?: string;
+}

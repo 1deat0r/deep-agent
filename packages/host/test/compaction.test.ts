@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { LlmChunk } from '@deep-agent/provider';
 import { MockLlmClient, textTurn, toolCallTurn } from '@deep-agent/provider';
+import { estimateTokens } from '../src/tokens.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig, DEFAULT_CONFIG } from '../src/config.js';
 import { createHost } from '../src/index.js';
@@ -51,6 +52,12 @@ async function fillOldExchanges(session: { append: (entry: unknown) => void }, c
 }
 
 describe('compaction', () => {
+  it('uses the real BPE tokenizer, not the chars/4 fallback', () => {
+    // chars/4 would estimate 25 for 100 chars; BPE merges the run down to ~13.
+    expect(estimateTokens('a'.repeat(100))).toBeLessThan(20);
+    expect(estimateTokens('The quick brown fox jumps over the lazy dog.')).toBe(10);
+  });
+
   it('does nothing under the threshold', async () => {
     const host = makeHost({ compactAtTokens: 250_000 });
     const session = await host.manager.createSession({ title: 'small' });

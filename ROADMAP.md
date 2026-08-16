@@ -4,8 +4,7 @@ Deliberately out of scope so far; listed so the gaps are explicit.
 
 ## Capability
 
-- Provider library: Anthropic, local models via Ollama/LM Studio profiles,
-  per-session model selection.
+- Provider library: Anthropic and local models via Ollama/LM Studio profiles.
 - Sandboxed execution profiles (container/e2b-style) for untrusted repos.
 - Desktop shell (DSH-style Electron/tray app) wrapping the same host.
 - Editing UX niceties in the web GUI: streaming markdown rendering, diff views,

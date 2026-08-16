@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { isAbsolute, join } from 'node:path';
 import type { ChatMessage, LlmClient, ToolCall } from '@deep-agent/provider';
 import { KernelManager, type ExecResult, type HostRequest } from '@deep-agent/kernel';
-import { estimateTokens } from './tokens.js';
+import {
+  messageTokens,
+  messagesTokens,
+  renderMessagePrefix,
+} from './tokens.js';
 import { IPYTHON_TOOL } from './types.js';
 import type {
   ChildSummary,
@@ -333,61 +337,34 @@ export class AgentSession {
 
   // -- compaction ----------------------------------------------------------
 
-  private messageTokens(messages: ChatMessage[]): number {
-    let total = 0;
-    for (const message of messages) {
-      total += estimateTokens(message.content ?? '');
-      for (const call of message.tool_calls ?? []) {
-        total += estimateTokens(call.function.name) + estimateTokens(call.function.arguments);
-      }
+  private lastCompactionIndex(): number {
+    for (let i = this.transcript.length - 1; i >= 0; i--) {
+      if (this.transcript[i]?.kind === 'compaction') return i;
     }
-    return total;
-  }
-
-  private renderPrefix(messages: ChatMessage[]): string {
-    const lines = messages.slice(-40).map((message) => {
-      const who = message.name ? `${message.role}(${message.name})` : message.role;
-      const text =
-        message.role === 'tool'
-          ? `[tool result: ${(message.content ?? '').slice(0, 500)}]`
-          : (message.content ?? '');
-      return `[${who}] ${text}`;
-    });
-    const body = lines.join('\n\n');
-    return body.length > 30_000 ? body.slice(-30_000) : body;
+    return -1;
   }
 
   /**
-   * When the transcript outgrows `compactAtChars`, summarize everything before
+   * When the transcript outgrows `compactAtTokens`, summarize everything before
    * the recent keep-window and append a compaction entry to the transcript.
    * History is never rewritten — the marker is append-only and context
-   * rebuilds deterministically from it on resume.
+   * rebuilds deterministically from it on resume. The summarization input is
+   * bounded (last 40 messages, 30k chars) as a deliberate prompt cap.
    */
   private async ensureCompacted(client: LlmClient): Promise<void> {
     // Only messages after the last compaction marker are part of the context;
     // measuring the whole transcript would re-summarize already-compacted
     // history on every turn.
-    let lastCompaction = -1;
-    for (let i = this.transcript.length - 1; i >= 0; i--) {
-      if (this.transcript[i]?.kind === 'compaction') {
-        lastCompaction = i;
-        break;
-      }
-    }
+    const lastCompaction = this.lastCompactionIndex();
     const all = SessionStore.messagesFrom(this.transcript.slice(lastCompaction + 1));
-    if (this.messageTokens(all) <= this.deps.config.compactAtTokens) return;
+    if (messagesTokens(all) <= this.deps.config.compactAtTokens) return;
 
     let keepStart = all.length;
     let keepTokens = 0;
     for (let i = all.length - 1; i >= 0; i--) {
       const message = all[i];
       if (!message) break;
-      const tokens =
-        estimateTokens(message.content ?? '') +
-        (message.tool_calls ?? []).reduce(
-          (n, call) => n + estimateTokens(call.function.arguments),
-          0,
-        );
+      const tokens = messageTokens(message);
       if (keepTokens > 0 && keepTokens + tokens > this.deps.config.compactKeepTokens) break;
       keepTokens += tokens;
       keepStart = i;
@@ -406,7 +383,7 @@ export class AgentSession {
     try {
       for await (const chunk of client.streamChat([
         { role: 'system', content: COMPACTION_PROMPT },
-        { role: 'user', content: this.renderPrefix(prefix) },
+        { role: 'user', content: renderMessagePrefix(prefix) },
       ])) {
         if (chunk.type === 'delta') summary += chunk.content;
         if (chunk.type === 'error') throw new Error(chunk.message);
@@ -418,7 +395,7 @@ export class AgentSession {
     }
     if (summary.trim() === '') return;
     // The marker is append-only and lands at the transcript tail, so it must
-    // carry the cut position: the transcript index of the first kept message.
+    // carry the cut index: the transcript index of the first kept message.
     let messageCount = 0;
     let from = this.transcript.length;
     for (let i = lastCompaction + 1; i < this.transcript.length; i++) {
@@ -450,13 +427,7 @@ export class AgentSession {
         skills: this.deps.skills.list(),
       }),
     };
-    let lastCompaction = -1;
-    for (let i = this.transcript.length - 1; i >= 0; i--) {
-      if (this.transcript[i]?.kind === 'compaction') {
-        lastCompaction = i;
-        break;
-      }
-    }
+    let lastCompaction = this.lastCompactionIndex();
     if (lastCompaction === -1) {
       return [system, ...SessionStore.messagesFrom(this.transcript)];
     }
@@ -537,24 +508,23 @@ export class AgentSession {
 
   // -- tool execution ------------------------------------------------------
 
-  private async executeToolCall(call: ToolCall): Promise<ChatMessage> {
+  private async executeToolCall(call: ToolCall): Promise<void> {
     const name = call.function.name;
+    const appendToolMessage = (content: string): void => {
+      this.append({ kind: 'message', role: 'tool', tool_call_id: call.id, content });
+    };
     if (name !== 'ipython') {
-      return {
-        role: 'tool',
-        tool_call_id: call.id,
-        content: `error: unknown tool "${name}" — only "ipython" exists in this RLM runtime`,
-      };
+      appendToolMessage(
+        `error: unknown tool "${name}" — only "ipython" exists in this RLM runtime`,
+      );
+      return;
     }
     let code = '';
     try {
       code = String((JSON.parse(call.function.arguments || '{}') as { code?: unknown }).code ?? '');
     } catch {
-      return {
-        role: 'tool',
-        tool_call_id: call.id,
-        content: 'error: ipython arguments must be JSON with a "code" string',
-      };
+      appendToolMessage('error: ipython arguments must be JSON with a "code" string');
+      return;
     }
     const kernel = await this.ensureKernel();
     let result: ExecResult;
@@ -579,13 +549,10 @@ export class AgentSession {
       };
       this.append(cell);
       this.deps.events.emit({ type: 'cell_result', sessionId: this.id, cell });
-      const toolMessage: ChatMessage = {
-        role: 'tool',
-        tool_call_id: call.id,
-        content: `error: ${message} — the kernel process died and will restart on your next ipython call; Python state was lost.`,
-      };
-      this.append({ kind: 'message', ...toolMessage });
-      return toolMessage;
+      appendToolMessage(
+        `error: ${message} — the kernel process died and will restart on your next ipython call; the kernel namespace was lost.`,
+      );
+      return;
     } finally {
       this.executingCell = false;
     }
@@ -601,13 +568,7 @@ export class AgentSession {
     };
     this.append(cell);
     this.deps.events.emit({ type: 'cell_result', sessionId: this.id, cell });
-    const toolMessage: ChatMessage = {
-      role: 'tool',
-      tool_call_id: call.id,
-      content: formatToolResult(result),
-    };
-    this.append({ kind: 'message', ...toolMessage });
-    return toolMessage;
+    appendToolMessage(formatToolResult(result));
   }
 
   // -- kernel --------------------------------------------------------------
@@ -627,7 +588,7 @@ export class AgentSession {
         this.append({
           kind: 'message',
           role: 'system',
-          content: `[system] the Python kernel crashed (${reason}) and was restarted — all Python state (variables, imports, functions) was lost. Re-establish what the task needs.`,
+          content: `[system] the Python kernel crashed (${reason}) and was restarted — the kernel namespace (variables, imports, functions) was lost. Re-establish what the goal needs.`,
         });
         this.deps.events.emit({ type: 'kernel_restarted', sessionId: this.id, reason });
       },

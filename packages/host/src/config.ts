@@ -12,13 +12,12 @@ export const DEFAULT_CONFIG: HostConfig = {
   maxAutoRounds: 10,
   execTimeoutMs: 0,
   maxKernelRestarts: 3,
-  contextWindowTokens: 60_000,
   compactAtTokens: 24_000,
   compactKeepTokens: 8_000,
   provider: {
     id: 'openai-compatible',
     baseUrl: 'https://api.deepseek.com',
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-flash',
     temperature: 0.3,
   },
 };
@@ -56,7 +55,6 @@ export interface ConfigOverrides {
   maxAutoRounds?: number;
   execTimeoutMs?: number;
   maxKernelRestarts?: number;
-  contextWindowTokens?: number;
   compactAtTokens?: number;
   compactKeepTokens?: number;
   provider?: Partial<HostConfig['provider']> & { id?: HostConfig['provider']['id'] };

@@ -7,5 +7,5 @@ programming model composes every capability as code in a durable namespace;
 the alternatives we rejected were many small native tools (more schemas for
 the model to juggle, more host code to keep consistent) and Jupyter's kernel
 (heavy install, less control over the protocol and magics). Consequence: the
-kernel's namespace is state the host cannot see, which is why restarts and
-compaction explicitly tell the model when that state is lost.
+kernel's namespace is invisible to the host, which is why restarts and
+compaction explicitly tell the model when the namespace is lost.

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import { AgentManager } from './manager.js';
 import { ssePayload } from './events.js';
-import type { HostConfig } from './types.js';
+import type { HostConfig, ModelsResponse } from './types.js';
 
 const VERSION = '0.1.0';
 
@@ -139,13 +139,15 @@ export class HostServer {
     if (pathname === '/api/models' && req.method === 'GET') {
       try {
         const client = this.manager.createClient({ role: 'root', model: this.config.provider.model });
-        sendJson(res, 200, { models: await client.listModels(), default: this.config.provider.model });
+        const models: ModelsResponse = { models: await client.listModels(), default: this.config.provider.model };
+        sendJson(res, 200, models);
       } catch (error) {
-        sendJson(res, 200, {
+        const models: ModelsResponse = {
           models: [this.config.provider.model],
           default: this.config.provider.model,
           error: (error as Error).message,
-        });
+        };
+        sendJson(res, 200, models);
       }
       return;
     }
