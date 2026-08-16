@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import {
   ConfigWriteError,
+  configFileBase,
   mergeProviderSettings,
   providerEnvOverrides,
   writeConfigFile,
@@ -236,6 +237,47 @@ describe('writeConfigFile', () => {
   });
 });
 
+describe('configFileBase', () => {
+  let root: string;
+  let path: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'deep-agent-config-base-'));
+    path = join(root, 'config.json');
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('yields the defaults when the file is missing', () => {
+    expect(configFileBase(path)).toEqual(DEFAULT_CONFIG);
+  });
+
+  it('merges a partial file over defaults, preserving unknown keys and provider fields', () => {
+    writeFileSync(
+      path,
+      JSON.stringify({
+        port: 9999,
+        customThing: 'x',
+        provider: { model: 'other-model', apiKey: 'sk-file' },
+      }),
+    );
+    const base = configFileBase(path);
+    expect(base.port).toBe(9999);
+    expect((base as unknown as { customThing: string }).customThing).toBe('x');
+    expect(base.provider.model).toBe('other-model');
+    expect(base.provider.apiKey).toBe('sk-file');
+    expect(base.provider.id).toBe('openai-compatible');
+    expect(base.maxDepth).toBe(3);
+  });
+
+  it('yields the defaults when the file is malformed', () => {
+    writeFileSync(path, '{not json');
+    expect(configFileBase(path)).toEqual(DEFAULT_CONFIG);
+  });
+});
+
 describe('providerEnvOverrides', () => {
   it('reports nothing when no provider env vars are set', () => {
     expect(providerEnvOverrides({})).toEqual([]);
@@ -248,7 +290,7 @@ describe('providerEnvOverrides', () => {
         DEEP_AGENT_MODEL: 'm',
         DEEP_AGENT_BASE_URL: 'u',
       }),
-    ).toEqual(['API_KEY', 'MODEL', 'BASE_URL']);
+    ).toEqual(['DEEP_AGENT_API_KEY', 'DEEP_AGENT_MODEL', 'DEEP_AGENT_BASE_URL']);
   });
 
   it('ignores empty-string env vars', () => {
@@ -259,7 +301,7 @@ describe('providerEnvOverrides', () => {
     const saved = process.env.DEEP_AGENT_MODEL;
     process.env.DEEP_AGENT_MODEL = 'm';
     try {
-      expect(providerEnvOverrides()).toEqual(['MODEL']);
+      expect(providerEnvOverrides()).toEqual(['DEEP_AGENT_MODEL']);
     } finally {
       if (saved === undefined) delete process.env.DEEP_AGENT_MODEL;
       else process.env.DEEP_AGENT_MODEL = saved;

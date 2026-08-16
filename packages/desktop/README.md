@@ -11,7 +11,9 @@ pnpm --filter @deep-agent/desktop start   # needs a display
 ```
 
 The main embeds `createHost()` in-process on `127.0.0.1` and loads the served
-GUI. `DEEP_AGENT_PORT` / the config file pick the port.
+GUI. The port is taken once at launch (`DEEP_AGENT_PORT` / the config file)
+and the desktop owns it for the app's lifetime — settings-triggered restarts
+reuse it, so the window URL never moves.
 
 ## Package (.deb + AppImage)
 

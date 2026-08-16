@@ -6,6 +6,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 const desktopSettings = {
   state: (): Promise<unknown> => ipcRenderer.invoke('settings:state'),
   apply: (settings: unknown): Promise<unknown> => ipcRenderer.invoke('settings:apply', settings),
+  checkForUpdates: (): Promise<unknown> => ipcRenderer.invoke('updates:check'),
 };
 
 contextBridge.exposeInMainWorld('desktopSettings', desktopSettings);

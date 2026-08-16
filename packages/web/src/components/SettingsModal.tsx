@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { getSkills } from '../api';
 import {
   applyDesktopSettings,
+  checkForDesktopUpdates,
   desktopSettingsAvailable,
-  envOverrideLabel,
   getDesktopSettingsState,
 } from '../desktop-settings';
 import type { DesktopSettingsState } from '../desktop-settings';
@@ -41,6 +41,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
   const [applyError, setApplyError] = useState<ApplyError | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedNote, setSavedNote] = useState<string | null>(null);
+  const [updateNote, setUpdateNote] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,8 +123,14 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 
   const envNotice =
     bridgeState !== null && bridgeState.envOverrides.length > 0
-      ? `Overridden by environment: ${bridgeState.envOverrides.map(envOverrideLabel).join(', ')}. Edits to those fields will not take effect.`
+      ? `Overridden by environment: ${bridgeState.envOverrides.join(', ')}. Edits to those fields will not take effect.`
       : null;
+
+  const checkUpdates = async (): Promise<void> => {
+    setUpdateNote('checking…');
+    await checkForDesktopUpdates();
+    setUpdateNote('check complete — a notice appears if an update is available.');
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -311,12 +318,22 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
               <section className="settings-section">
                 <h2 className="settings-section__title">Configuration</h2>
                 {editable ? (
-                  <p className="settings-section__text">
-                    Provider settings are saved by the desktop app to{' '}
-                    <code>~/.config/deep-agent/config.json</code>. Saving restarts the host:
-                    running sessions stop (their transcripts are kept). Environment variables
-                    override the file where set.
-                  </p>
+                  <>
+                    <p className="settings-section__text">
+                      Provider settings are saved by the desktop app to{' '}
+                      <code>~/.config/deep-agent/config.json</code>. Saving restarts the host:
+                      running sessions stop (their transcripts are kept). Environment variables
+                      override the file where set.
+                    </p>
+                    {bridgeState.updateCheckAvailable && (
+                      <p className="settings-section__text">
+                        <button type="button" className="btn" onClick={() => void checkUpdates()}>
+                          Check for updates
+                        </button>
+                        {updateNote !== null && <span> {updateNote}</span>}
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <>
                     <p className="settings-section__text">

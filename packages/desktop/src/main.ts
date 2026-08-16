@@ -7,6 +7,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Tray } from 'electron';
 import {
   ConfigWriteError,
+  configFileBase,
   createHost,
   defaultConfigPath,
   loadConfig,
@@ -14,14 +15,17 @@ import {
   providerEnvOverrides,
   writeConfigFile,
 } from '@deep-agent/host';
-import type { Host } from '@deep-agent/host';
+import type { Host, HostConfig } from '@deep-agent/host';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { wireAutoUpdate } from './update-check.js';
+import { checkForUpdatesNow, wireAutoUpdate } from './update-check.js';
 
 // Wayland + Vulkan is incompatible in Electron 43's GPU path; the window is a
 // text UI, so render through XWayland without GPU acceleration (ticket 05).
+// The env hint is set too: Chromium prefers it over the switch when both
+// DISPLAY and WAYLAND_DISPLAY exist, and we must never land on Wayland.
+process.env.ELECTRON_OZONE_PLATFORM_HINT = 'x11';
 app.commandLine.appendSwitch('ozone-platform', 'x11');
 app.disableHardwareAcceleration();
 
@@ -34,6 +38,8 @@ if (!app.requestSingleInstanceLock()) {
   let window: BrowserWindow | null = null;
   let quitting = false;
   let baseUrl = '';
+  /** The desktop owns the port for the app's lifetime (ticket 04). */
+  let ownedPort: number | undefined;
 
   // A tiny solid square so the tray has something to draw (16x16 PNG).
   const trayIcon = nativeImage.createFromDataURL(
@@ -45,9 +51,24 @@ if (!app.requestSingleInstanceLock()) {
     return process.env.DEEP_AGENT_CONFIG ?? defaultConfigPath();
   }
 
-  /** First run = no config file yet, or a keyless provider (boots as mock). */
-  function isFirstRun(): boolean {
-    return !existsSync(configPath()) || !host?.config.provider.apiKey;
+  function provider(): HostConfig['provider'] | undefined {
+    return host?.config.provider;
+  }
+
+  /** Ticket 05: navigation is pinned to the host's origin, not a string prefix. */
+  function sameOrigin(url: string): boolean {
+    try {
+      return new URL(url).origin === new URL(baseUrl).origin;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Settings needed on first run: no config file, or a keyed provider without a key. */
+  function needsProviderSetup(): boolean {
+    if (!existsSync(configPath())) return true;
+    const p = provider();
+    return p?.id === 'openai-compatible' && !p.apiKey;
   }
 
   /** Packaged apps bundle the GUI; in dev the host's repo-relative default applies. */
@@ -67,10 +88,15 @@ if (!app.requestSingleInstanceLock()) {
   async function startHost(): Promise<{ port: number; host: string }> {
     const webDir = resolveWebDir();
     if (webDir) process.env.DEEP_AGENT_WEB_DIR = webDir;
-    // Host pinned to 127.0.0.1 (ticket 05); port comes from the config file.
-    const config = loadConfig({ host: '127.0.0.1' });
+    // Host pinned to 127.0.0.1 (ticket 05); the desktop owns the port for its
+    // lifetime so a settings-triggered restart never moves the URL (ticket 04).
+    const config = loadConfig({
+      host: '127.0.0.1',
+      ...(ownedPort !== undefined ? { port: ownedPort } : {}),
+    });
     host = createHost(config);
     const bound = await host.server.start();
+    ownedPort = bound.port;
     console.log(
       `[desktop] embedded host serving http://127.0.0.1:${bound.port} ` +
         `(provider ${config.provider.id}/${config.provider.model})`,
@@ -103,7 +129,7 @@ if (!app.requestSingleInstanceLock()) {
       callback(false),
     );
     win.webContents.on('will-navigate', (event, url) => {
-      if (!url.startsWith(baseUrl)) event.preventDefault();
+      if (!sameOrigin(url)) event.preventDefault();
     });
     // Close-to-tray: closing hides the window; the host keeps serving.
     win.on('close', (event) => {
@@ -153,24 +179,30 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   // Dormant until a release host exists (ticket 03).
-  wireAutoUpdate();
+  const updateState = wireAutoUpdate();
 
   // --- settings IPC (ticket 04): the narrow bridge the renderer may use -----
 
-  ipcMain.handle('settings:state', () => ({
-    providerId: host?.config.provider.id,
-    model: host?.config.provider.model,
-    baseUrl: host?.config.provider.baseUrl,
-    hasApiKey: Boolean(host?.config.provider.apiKey),
-    envOverrides: providerEnvOverrides(),
-    isFirstRun: isFirstRun(),
-  }));
+  ipcMain.handle('settings:state', () => {
+    const p = provider();
+    return {
+      providerId: p?.id,
+      model: p?.model,
+      baseUrl: p?.baseUrl,
+      hasApiKey: Boolean(p?.apiKey),
+      envOverrides: providerEnvOverrides(),
+      isFirstRun: needsProviderSetup(),
+      updateCheckAvailable: updateState.manualCheck,
+    };
+  });
 
   ipcMain.handle('settings:apply', async (event, rawSettings: unknown) => {
     if (!host) return { ok: false, message: 'host not running' };
     let merged;
     try {
-      merged = mergeProviderSettings(host.config, rawSettings);
+      // Merge into what the FILE yields (no env): env overrides sit above the
+      // file and must never be baked into it (ticket 04).
+      merged = mergeProviderSettings(configFileBase(configPath()), rawSettings);
     } catch (error) {
       if (error instanceof ConfigWriteError) {
         return { ok: false, field: error.field, message: error.message };
@@ -202,5 +234,12 @@ if (!app.requestSingleInstanceLock()) {
     baseUrl = `http://127.0.0.1:${bound.port}`;
     await window?.loadURL(`${baseUrl}/`);
     return { ok: true, changed: true };
+  });
+
+  // Manual update check for the .deb build (ticket 03); the AppImage path
+  // checks automatically on startup instead.
+  ipcMain.handle('updates:check', () => {
+    checkForUpdatesNow();
+    return { ok: true };
   });
 }

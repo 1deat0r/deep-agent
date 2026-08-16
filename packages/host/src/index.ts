@@ -80,6 +80,7 @@ export {
   ConfigWriteError,
   mergeProviderSettings,
   writeConfigFile,
+  configFileBase,
   providerEnvOverrides,
 } from './config-write.js';
 export type { ProviderSettingsMerge, ProviderEnvOverride } from './config-write.js';

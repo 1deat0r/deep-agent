@@ -3,7 +3,7 @@
 // and the Settings modal stays display-only. Everything here is typed against
 // the IPC contract in packages/desktop/src/main.ts.
 
-export type ProviderEnvOverride = 'API_KEY' | 'MODEL' | 'BASE_URL';
+export type ProviderEnvOverride = 'DEEP_AGENT_API_KEY' | 'DEEP_AGENT_MODEL' | 'DEEP_AGENT_BASE_URL';
 
 export interface DesktopSettingsState {
   providerId: 'openai-compatible' | 'mock';
@@ -12,6 +12,7 @@ export interface DesktopSettingsState {
   hasApiKey: boolean;
   envOverrides: ProviderEnvOverride[];
   isFirstRun: boolean;
+  updateCheckAvailable: boolean;
 }
 
 export interface DesktopSettingsApplyInput {
@@ -28,6 +29,7 @@ export type DesktopSettingsApplyResult =
 interface DesktopSettingsBridge {
   state: () => Promise<unknown>;
   apply: (settings: unknown) => Promise<unknown>;
+  checkForUpdates: () => Promise<unknown>;
 }
 
 declare global {
@@ -56,14 +58,8 @@ export async function applyDesktopSettings(
   return raw as DesktopSettingsApplyResult;
 }
 
-/** Human label for an env override, for the "overridden by environment" notice. */
-export function envOverrideLabel(override: ProviderEnvOverride): string {
-  switch (override) {
-    case 'API_KEY':
-      return 'DEEP_AGENT_API_KEY';
-    case 'MODEL':
-      return 'DEEP_AGENT_MODEL';
-    case 'BASE_URL':
-      return 'DEEP_AGENT_BASE_URL';
-  }
+/** Manual update check for the .deb build; no-op without the bridge. */
+export async function checkForDesktopUpdates(): Promise<void> {
+  if (!desktopSettingsAvailable()) return;
+  await window.desktopSettings!.checkForUpdates();
 }

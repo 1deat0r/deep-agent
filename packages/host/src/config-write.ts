@@ -1,5 +1,6 @@
-import { mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { DEFAULT_CONFIG } from './config.js';
 import type { HostConfig } from './types.js';
 
 const PROVIDER_IDS = ['openai-compatible', 'mock'] as const;
@@ -108,7 +109,31 @@ export function writeConfigFile(path: string, config: HostConfig): void {
   }
 }
 
-export type ProviderEnvOverride = 'API_KEY' | 'MODEL' | 'BASE_URL';
+export type ProviderEnvOverride = 'DEEP_AGENT_API_KEY' | 'DEEP_AGENT_MODEL' | 'DEEP_AGENT_BASE_URL';
+
+/**
+ * The config a write should start from: what the file yields merged over the
+ * defaults, with **no environment variables** — env overrides sit above the
+ * file and must never be baked into it. A missing or malformed file yields
+ * the defaults. Unknown keys are preserved so a save never clobbers them.
+ */
+export function configFileBase(path: string): HostConfig {
+  let fileConfig: Record<string, unknown> = {};
+  try {
+    fileConfig = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  } catch {
+    // Missing or malformed: start from defaults.
+  }
+  const rawProvider =
+    typeof fileConfig.provider === 'object' && fileConfig.provider !== null
+      ? (fileConfig.provider as Record<string, unknown>)
+      : {};
+  return {
+    ...DEFAULT_CONFIG,
+    ...fileConfig,
+    provider: { ...DEFAULT_CONFIG.provider, ...rawProvider },
+  } as HostConfig;
+}
 
 /**
  * Which provider env overrides shadow the config file, feeding the GUI's
@@ -118,8 +143,8 @@ export function providerEnvOverrides(
   env: Record<string, string | undefined> = process.env,
 ): ProviderEnvOverride[] {
   const overrides: ProviderEnvOverride[] = [];
-  if (env.DEEP_AGENT_API_KEY) overrides.push('API_KEY');
-  if (env.DEEP_AGENT_MODEL) overrides.push('MODEL');
-  if (env.DEEP_AGENT_BASE_URL) overrides.push('BASE_URL');
+  if (env.DEEP_AGENT_API_KEY) overrides.push('DEEP_AGENT_API_KEY');
+  if (env.DEEP_AGENT_MODEL) overrides.push('DEEP_AGENT_MODEL');
+  if (env.DEEP_AGENT_BASE_URL) overrides.push('DEEP_AGENT_BASE_URL');
   return overrides;
 }
