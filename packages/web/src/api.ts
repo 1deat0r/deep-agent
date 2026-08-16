@@ -4,6 +4,7 @@ import type {
   GoalState,
   SessionDetail,
   SessionMeta,
+  SkillInfo,
 } from './types';
 
 /**
@@ -42,6 +43,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getConfig(): Promise<AppConfig> {
   return apiFetch<AppConfig>('/api/config');
+}
+
+export function getSkills(): Promise<{ dir: string; skills: SkillInfo[] }> {
+  return apiFetch<{ dir: string; skills: SkillInfo[] }>('/api/skills');
 }
 
 export function getSessions(): Promise<{ sessions: SessionMeta[] }> {

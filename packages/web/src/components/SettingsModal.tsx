@@ -1,4 +1,6 @@
-import type { AppConfig } from '../types';
+import { useEffect, useState } from 'react';
+import { getSkills } from '../api';
+import type { AppConfig, SkillInfo } from '../types';
 
 export interface SettingsModalProps {
   config: AppConfig | null;
@@ -7,6 +9,25 @@ export interface SettingsModalProps {
 
 export function SettingsModal(props: SettingsModalProps): JSX.Element {
   const { config, onClose } = props;
+  const [skills, setSkills] = useState<SkillInfo[] | null>(null);
+  const [skillsDir, setSkillsDir] = useState<string | null>(null);
+  const [skillsError, setSkillsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSkills()
+      .then((res) => {
+        if (cancelled) return;
+        setSkills(res.skills);
+        setSkillsDir(res.dir);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setSkillsError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -87,6 +108,35 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
                     </dd>
                   </div>
                 </dl>
+              </section>
+
+              <section className="settings-section">
+                <h2 className="settings-section__title">
+                  Skills{skills !== null ? ` (${skills.length})` : ''}
+                </h2>
+                {skillsError !== null ? (
+                  <p className="settings-section__text">Failed to load skills: {skillsError}</p>
+                ) : skills === null ? (
+                  <p className="modal__loading">Loading skills…</p>
+                ) : skills.length === 0 ? (
+                  <p className="settings-section__text">No skills installed.</p>
+                ) : (
+                  <>
+                    {skillsDir !== null && (
+                      <p className="skills-dir" title={skillsDir}>
+                        {skillsDir}
+                      </p>
+                    )}
+                    <ul className="skills-list">
+                      {skills.map((skill) => (
+                        <li className="skill-item" key={skill.name}>
+                          <span className="skill-item__name">{skill.name}</span>
+                          <span className="skill-item__desc">{skill.description}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </section>
 
               <section className="settings-section">
