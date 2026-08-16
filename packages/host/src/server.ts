@@ -129,6 +129,13 @@ export class HostServer {
       sendJson(res, 200, { ok: true, version: VERSION });
       return;
     }
+    if (pathname === '/api/skills') {
+      sendJson(res, 200, {
+        dir: this.manager.skills.dir,
+        skills: this.manager.skills.list(),
+      });
+      return;
+    }
     if (pathname === '/api/config') {
       const { provider } = this.config;
       sendJson(res, 200, {

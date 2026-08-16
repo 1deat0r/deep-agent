@@ -349,6 +349,11 @@ describe('HTTP server', () => {
         body: JSON.stringify({ code: '21 * 2' }),
       }).then((r) => r.json());
       expect((cell as { resultRepr: string }).resultRepr).toBe('42');
+
+      const skills = (await fetch(`${base}/api/skills`).then((r) =>
+        r.json(),
+      )) as { dir: string; skills: { name: string }[] };
+      expect(skills.skills.some((skill) => skill.name === 'tdd')).toBe(true);
     } finally {
       await host.server.stop();
     }
