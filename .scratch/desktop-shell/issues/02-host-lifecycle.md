@@ -1,7 +1,7 @@
 # 02 — Host lifecycle: embed in-process or spawn the CLI?
 
 Type: prototype
-Status: claimed
+Status: resolved
 Blocked by: 01
 
 ## Question
@@ -22,3 +22,14 @@ second launch exits. Security baseline (ticket 05) previewed: contextIsolation,
 no nodeIntegration, sandbox, navigation pinned to 127.0.0.1.
 
 Run it yourself: `cd packages/desktop && pnpm start` (needs your display).
+
+## Answer
+
+**Embed in-process.** The Electron main creates and owns `HostServer`
+directly — the same shape as the CLI. One process, one lifecycle, no child to
+babysit; the prototype verified headlessly that the embedded host serves the
+GUI and API, the single-instance lock hands off a second launch, and the tray
+gives Open/Quit.
+
+Resolved 2026-08-17 on the user's verdict. The `prototype/desktop-embed`
+branch stays throwaway; production packaging scope is ticket 03.
