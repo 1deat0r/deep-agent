@@ -1,0 +1,15 @@
+[Unit]
+Description=deep-agent RLM agent harness (web UI on %i)
+Documentation=file:///home/mustbearn/Projects/AI%20Agents/Deep%20Agent/README.md
+After=network-online.target
+
+[Service]
+Type=simple
+# Adjust the paths below, then: systemctl --user daemon-reload && systemctl --user enable --now deep-agent.service
+ExecStart=/usr/bin/node /home/mustbearn/Projects/AI%20Agents/Deep%20Agent/packages/cli/dist/bin/deep-agent.js serve
+Environment=DEEP_AGENT_DATA_DIR=%h/.local/share/deep-agent
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

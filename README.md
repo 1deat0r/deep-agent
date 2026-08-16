@@ -74,6 +74,19 @@ node packages/cli/dist/bin/deep-agent.js skills list
 node packages/cli/dist/bin/deep-agent.js skills install <dir>
 ```
 
+### Daemon mode
+
+Run the harness detached, then control it from any shell:
+
+```bash
+node packages/cli/dist/bin/deep-agent.js serve --daemon   # logs to <dataDir>/deep-agent.log
+node packages/cli/dist/bin/deep-agent.js status
+node packages/cli/dist/bin/deep-agent.js stop
+```
+
+A systemd user unit template ships in [systemd/deep-agent.service](systemd/deep-agent.service)
+(`systemctl --user enable --now deep-agent` after adjusting paths).
+
 Full model: [docs/rlm-programming-model.md](docs/rlm-programming-model.md).
 
 ## Repository map

@@ -2,11 +2,6 @@
 
 Deliberately out of scope so far; listed so the gaps are explicit.
 
-## Reliability
-
-- Daemon mode: sessions that keep running after the client disconnects
-  (currently the process must stay up, which it does — but there is no detach).
-
 ## Capability
 
 - Python-backed skills (prime-agent's `SKILL.md` + importable package format).
