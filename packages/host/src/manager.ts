@@ -189,12 +189,8 @@ export class AgentManager {
       parent.meta.childIds.find((id) => id === nameOrId) ??
       parent.meta.childIds.find((id) => (this.childMeta.get(id)?.name ?? id) === nameOrId);
     if (!childId) throw new Error(`no child named "${nameOrId}"`);
-    const child = this.sessions.get(childId);
-    await child?.dispose();
-    this.sessions.delete(childId);
-    this.childMeta.delete(childId);
-    parent.meta.childIds = parent.meta.childIds.filter((id) => id !== childId);
-    parent.touch();
+    // deleteSession handles disposal, parent bookkeeping, and disk removal.
+    await this.deleteSession(childId);
   }
 
   async routeMessage(

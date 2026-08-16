@@ -174,6 +174,29 @@ describe('rlm children', () => {
       /depth/,
     );
   });
+
+  it('deleting a child removes it from disk (no resurrection on reload)', async () => {
+    const host = makeHost();
+    const parent = await host.manager.createSession({ title: 'root' });
+    const { child_id } = await host.manager.spawnChild(parent, 'do work', 'worker');
+    await waitFor(() => host.manager.get(child_id)?.status === 'idle');
+    expect(host.manager.get(child_id)).toBeDefined();
+
+    await host.manager.deleteChild(parent, 'worker');
+    expect(host.manager.get(child_id)).toBeUndefined();
+    expect(parent.meta.childIds).not.toContain(child_id);
+    expect(existsSync(join(host.config.dataDir, 'sessions', child_id))).toBe(false);
+
+    // a restarted host must not resurrect the deleted child
+    const config = loadConfig({
+      ...DEFAULT_CONFIG,
+      dataDir,
+      provider: { id: 'mock' as const, model: 'mock-model' },
+    });
+    const freshHost = createHost(config, () => MockLlmClient.shared(rootScripts));
+    hosts.push(freshHost);
+    expect(freshHost.manager.list().some((meta) => meta.id === child_id)).toBe(false);
+  });
 });
 
 describe('goals and autonomous continuation', () => {
