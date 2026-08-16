@@ -235,6 +235,8 @@ export class HostServer {
     }
 
     if (rest === '/continue' && req.method === 'POST') {
+      session.meta.autoContinue = true;
+      session.touch();
       void session
         .runTurn({
           content:

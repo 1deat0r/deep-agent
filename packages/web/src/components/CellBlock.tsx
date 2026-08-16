@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDuration } from '../format';
+import { formatDuration, formatTime } from '../format';
 
 export interface CellBlockProps {
   code: string;

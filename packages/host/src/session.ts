@@ -98,6 +98,8 @@ export class AgentSession {
   private abort: AbortController | null = null;
   private disposed = false;
   private continuationScheduled = false;
+  private continuationTimer: NodeJS.Timeout | null = null;
+  private pauseAfterTurn = false;
 
   private constructor(meta: SessionMeta, transcript: TranscriptEntry[], deps: SessionDeps) {
     this.id = meta.id;
@@ -192,6 +194,15 @@ export class AgentSession {
 
   private async doRunTurn(input: TurnInput): Promise<TurnResult> {
     if (this.disposed) return { ok: false, summary: '', error: 'session disposed' };
+    // A direct user message (no name) while a goal continuation is pending
+    // pauses the autonomous loop after this turn; child replies and system
+    // continuations do not pause it.
+    if (input.name === undefined && this.continuationTimer) {
+      clearTimeout(this.continuationTimer);
+      this.continuationTimer = null;
+      this.continuationScheduled = false;
+      this.pauseAfterTurn = true;
+    }
     if (input.goalRound && this.meta.goal) {
       this.meta.goal.rounds += 1;
       this.meta.goal.updatedAt = new Date().toISOString();
@@ -276,6 +287,12 @@ export class AgentSession {
   }
 
   private scheduleContinuationIfDue(): void {
+    if (this.pauseAfterTurn) {
+      this.pauseAfterTurn = false;
+      this.meta.autoContinue = false;
+      this.touch();
+      return;
+    }
     const goal = this.meta.goal;
     if (!goal || !this.meta.autoContinue || this.continuationScheduled || this.disposed) return;
     if (goal.status !== 'active') return;
@@ -287,8 +304,9 @@ export class AgentSession {
       return;
     }
     this.continuationScheduled = true;
-    setTimeout(() => {
+    this.continuationTimer = setTimeout(() => {
       this.continuationScheduled = false;
+      this.continuationTimer = null;
       if (this.disposed || this.meta.goal?.status !== 'active' || !this.meta.autoContinue) return;
       void this.runTurn({
         content: `Goal continuation round ${this.meta.goal.rounds + 1}/${this.meta.goal.maxRounds}: continue working toward the objective. Inspect current state, do the next increment of work, then report progress.`,

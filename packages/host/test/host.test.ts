@@ -238,6 +238,23 @@ describe('goals and autonomous continuation', () => {
     expect(session.meta.goal?.blockedReason).toContain('round limit');
   });
 
+  it('a user message supersedes a pending goal continuation', async () => {
+    const host = makeHost({ maxAutoRounds: 5 });
+    const session = await host.manager.createSession({ title: 'goal-session', goal: 'ship it' });
+    rootScripts.push(textTurn('first turn done'));
+    await session.runTurn({ content: 'start' });
+    // The 250ms continuation timer is pending; a user message must pause the loop.
+    rootScripts.push(textTurn('user-directed answer'));
+    await session.runTurn({ content: 'do this specific thing instead' });
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(session.meta.goal?.rounds).toBe(0);
+    expect(session.meta.autoContinue).toBe(false);
+    const systemMessages = session.transcript.filter(
+      (entry) => entry.kind === 'message' && entry.name === 'system',
+    );
+    expect(systemMessages).toHaveLength(0);
+  });
+
   it('goal create/complete via kernel host requests', async () => {
     const host = makeHost();
     const session = await host.manager.createSession({ title: 'g' });
