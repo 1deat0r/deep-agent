@@ -23,8 +23,8 @@ Web GUI (React) ──▶ TypeScript host (RLM loop, sessions, children, goals)
 
 ```bash
 pnpm install
-pnpm build                        # build provider, kernel, host, cli
-python3 -m unittest discover python/deep_agent_runtime -v   # kernel tests
+pnpm build                        # build provider, kernel, host, cli, web
+pnpm test:python                  # kernel tests
 pnpm test                         # TS tests
 
 # mock provider (no API key, exercise the whole harness offline):
@@ -34,9 +34,9 @@ node packages/cli/dist/bin/deep-agent.js serve --provider mock
 DEEP_AGENT_API_KEY=sk-... node packages/cli/dist/bin/deep-agent.js serve
 ```
 
-Open the printed URL (default `http://127.0.0.1:3824`). Build the web UI first:
-`pnpm --filter @deep-agent/web build` (or `pnpm dev:web` for the Vite dev server,
-which proxies nothing but talks to the host on 127.0.0.1:3824).
+Open the printed URL (default `http://127.0.0.1:3824`) — the host serves the
+built web GUI from `packages/web/dist` (`pnpm dev:web` runs the Vite dev server
+on 5173 instead, which talks to the host on 127.0.0.1:3824).
 
 ## How the agent works
 
