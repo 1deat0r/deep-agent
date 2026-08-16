@@ -258,6 +258,15 @@ export class HostServer {
 
     if (rest === '/continue' && req.method === 'POST') {
       session.meta.autoContinue = true;
+      if (session.meta.goal?.status === 'paused') {
+        session.meta.goal.status = 'active';
+        session.meta.goal.updatedAt = new Date().toISOString();
+        this.manager.events.emit({
+          type: 'goal_updated',
+          sessionId,
+          goal: session.meta.goal,
+        });
+      }
       session.touch();
       void session
         .runTurn({

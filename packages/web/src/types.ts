@@ -2,7 +2,7 @@
 // Kept in one place so the UI and API helper share a single source of truth.
 
 export type SessionRole = 'root' | 'child';
-export type SessionStatus = 'idle' | 'running' | 'completed' | 'error';
+export type SessionStatus = 'idle' | 'running' | 'completed';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'paused';
 
 export interface GoalState {

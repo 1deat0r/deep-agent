@@ -159,6 +159,10 @@ export class AgentManager {
       ? result.summary || '(child finished)'
       : `child failed: ${result.error ?? 'unknown error'}`;
     this.events.emit({ type: 'child_finished', sessionId: parent.id, childId: child.id, summary });
+    // A finished child is a completed unit of work (root sessions stay idle).
+    child.meta.status = 'completed';
+    child.touch();
+    this.events.emit({ type: 'status', sessionId: child.id, status: 'completed' });
     parent.append({
       kind: 'message',
       role: 'user',

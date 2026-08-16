@@ -21,7 +21,7 @@ The transcript's record of one executed cell (code, outputs, error, duration) â€
 _Avoid_: Cell result, cell log
 
 **Goal**:
-A long-running objective with rounds; statuses `active`, `completed`, `blocked`. When active with auto-continuation on, the host re-enters the session each round until completion or the round budget.
+A long-running objective with rounds; statuses `active`, `completed`, `blocked`, `paused` (paused when a direct user message interrupts the loop; resumed via /continue). When active with auto-continuation on, the host re-enters the session each round until completion or the round budget.
 _Avoid_: Task, mission
 
 **Goal round**:

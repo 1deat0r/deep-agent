@@ -146,7 +146,7 @@ describe('rlm children', () => {
     const childId = parent.meta.childIds[0] ?? '';
     expect(childId).not.toBe('');
 
-    await waitFor(() => host.manager.get(childId)?.status === 'idle');
+    await waitFor(() => host.manager.get(childId)?.status === 'completed');
     const child = host.manager.get(childId);
     expect(child?.meta.role).toBe('child');
     expect(child?.meta.parentId).toBe(parent.id);
@@ -182,7 +182,7 @@ describe('rlm children', () => {
     const host = makeHost();
     const parent = await host.manager.createSession({ title: 'root' });
     const { child_id } = await host.manager.spawnChild(parent, 'do work', 'worker');
-    await waitFor(() => host.manager.get(child_id)?.status === 'idle');
+    await waitFor(() => host.manager.get(child_id)?.status === 'completed');
     expect(host.manager.get(child_id)).toBeDefined();
 
     await host.manager.deleteChild(parent, 'worker');
@@ -205,7 +205,7 @@ describe('rlm children', () => {
     const host = makeHost();
     const parent = await host.manager.createSession({ title: 'root' });
     const { child_id } = await host.manager.spawnChild(parent, 'do work', 'worker');
-    await waitFor(() => host.manager.get(child_id)?.status === 'idle');
+    await waitFor(() => host.manager.get(child_id)?.status === 'completed');
     const deletedEvents: string[] = [];
     host.events.on((event) => {
       if (event.type === 'session_deleted') deletedEvents.push(event.sessionId);
@@ -308,6 +308,7 @@ describe('goals and autonomous continuation', () => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect(session.meta.goal?.rounds).toBe(0);
     expect(session.meta.autoContinue).toBe(false);
+    expect(session.meta.goal?.status).toBe('paused');
     const systemMessages = session.transcript.filter(
       (entry) => entry.kind === 'message' && entry.name === 'system',
     );
@@ -338,7 +339,7 @@ describe('models', () => {
     expect(session.meta.model).toBe('deepseek-v4-pro');
 
     const { child_id } = await host.manager.spawnChild(session, 'work', 'kid');
-    await waitFor(() => host.manager.get(child_id)?.status === 'idle');
+    await waitFor(() => host.manager.get(child_id)?.status === 'completed');
     expect(host.manager.get(child_id)?.meta.model).toBe('deepseek-v4-pro');
 
     host.config.port = 0;

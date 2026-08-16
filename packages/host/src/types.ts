@@ -1,7 +1,7 @@
 import type { ChatMessage } from '@deep-agent/provider';
 
 export type SessionRole = 'root' | 'child';
-export type SessionStatus = 'idle' | 'running' | 'completed' | 'error';
+export type SessionStatus = 'idle' | 'running' | 'completed';
 
 export interface GoalState {
   objective: string;

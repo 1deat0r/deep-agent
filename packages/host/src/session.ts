@@ -290,6 +290,15 @@ export class AgentSession {
     if (this.pauseAfterTurn) {
       this.pauseAfterTurn = false;
       this.meta.autoContinue = false;
+      if (this.meta.goal && this.meta.goal.status === 'active') {
+        this.meta.goal.status = 'paused';
+        this.meta.goal.updatedAt = new Date().toISOString();
+        this.deps.events.emit({
+          type: 'goal_updated',
+          sessionId: this.id,
+          goal: this.meta.goal,
+        });
+      }
       this.touch();
       return;
     }
