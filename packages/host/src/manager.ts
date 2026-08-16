@@ -240,6 +240,11 @@ export class AgentManager {
   async deleteSession(id: string): Promise<boolean> {
     const session = this.sessions.get(id);
     if (!session) return false;
+    // Cascade: children (and their descendants) go first so no session is
+    // left with a dangling parent.
+    for (const childId of [...session.meta.childIds]) {
+      await this.deleteSession(childId);
+    }
     await session.dispose();
     this.sessions.delete(id);
     this.childMeta.delete(id);
@@ -251,6 +256,7 @@ export class AgentManager {
       }
     }
     this.store.removeSession(id);
+    this.events.emit({ type: 'session_deleted', sessionId: id });
     return true;
   }
 

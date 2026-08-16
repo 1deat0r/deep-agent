@@ -197,6 +197,28 @@ describe('rlm children', () => {
     hosts.push(freshHost);
     expect(freshHost.manager.list().some((meta) => meta.id === child_id)).toBe(false);
   });
+
+  it('deleting a session cascades to children and emits session_deleted', async () => {
+    const host = makeHost();
+    const parent = await host.manager.createSession({ title: 'root' });
+    const { child_id } = await host.manager.spawnChild(parent, 'do work', 'worker');
+    await waitFor(() => host.manager.get(child_id)?.status === 'idle');
+    const deletedEvents: string[] = [];
+    host.events.on((event) => {
+      if (event.type === 'session_deleted') deletedEvents.push(event.sessionId);
+    });
+
+    expect(await host.manager.deleteSession(parent.id)).toBe(true);
+    expect(host.manager.get(parent.id)).toBeUndefined();
+    expect(host.manager.get(child_id)).toBeUndefined();
+    expect(existsSync(join(host.config.dataDir, 'sessions', child_id))).toBe(false);
+    expect(existsSync(join(host.config.dataDir, 'sessions', parent.id))).toBe(false);
+    expect(deletedEvents).toContain(parent.id);
+    expect(deletedEvents).toContain(child_id);
+
+    // idempotent false for a missing session
+    expect(await host.manager.deleteSession(parent.id)).toBe(false);
+  });
 });
 
 describe('goals and autonomous continuation', () => {

@@ -67,6 +67,7 @@ export type HostEvent =
   | { type: 'child_spawned'; sessionId: string; child: ChildSummary }
   | { type: 'child_finished'; sessionId: string; childId: string; summary: string }
   | { type: 'goal_updated'; sessionId: string; goal: GoalState }
+  | { type: 'session_deleted'; sessionId: string }
   | { type: 'error'; sessionId: string; message: string };
 
 export interface SessionDetail {

@@ -496,12 +496,14 @@ export class AgentSession {
   // -- transcript/meta helpers ----------------------------------------------
 
   append(entry: TranscriptEntry): void {
+    if (this.disposed) return;
     this.transcript.push(entry);
     this.deps.store.appendTranscript(this.id, entry);
     this.touch();
   }
 
   touch(): void {
+    if (this.disposed) return;
     this.meta.updatedAt = new Date().toISOString();
     this.deps.store.saveMeta(this.meta);
   }

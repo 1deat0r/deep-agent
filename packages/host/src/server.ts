@@ -193,7 +193,11 @@ export class HostServer {
         return;
       }
       if (req.method === 'DELETE') {
-        await this.manager.deleteSession(sessionId);
+        const removed = await this.manager.deleteSession(sessionId);
+        if (!removed) {
+          sendJson(res, 404, { error: 'session not found' });
+          return;
+        }
         sendJson(res, 200, { ok: true });
         return;
       }
