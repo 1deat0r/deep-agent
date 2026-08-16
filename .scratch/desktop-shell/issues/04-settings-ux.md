@@ -52,9 +52,18 @@ understanding.
   enter key → works immediately.
 - **First run**: no config file or empty `apiKey` → the window opens into the
   Settings modal.
-- **Implementation notes**: main writes atomically (tmp + rename) with 0600;
-  validation reuses the host's `loadConfig` shape plus GUI field checks
-  (non-empty key, URL-shaped baseUrl). Caveat: env overrides
-  (`DEEP_AGENT_API_KEY` etc.) sit above the file, so the GUI should surface
-  "overridden by environment" when a relevant env var is set instead of
-  silently appearing to ignore edits.
+- **Implementation notes**: main writes atomically (tmp + rename) with 0600 —
+  a torn write would leave a malformed file, which is a hard startup error for
+  both CLI and desktop (`loadConfig` only JSON-parses; exit 1 on failure). The
+  write is a read-modify-write: parse the existing file, merge only the four
+  provider fields, preserve all other/unknown keys. If `DEEP_AGENT_CONFIG`
+  points elsewhere, the desktop main writes that path — it must read and write
+  the same file it loaded. Validation reuses the host's `loadConfig` shape plus
+  GUI field checks (non-empty key, URL-shaped baseUrl). The API key is never
+  readable from the GUI (`GET /api/config` sanitizes it to a `hasApiKey`
+  boolean), so the key field is replace-only: masked "set" state, the user
+  types a new key. Caveat: env overrides (`DEEP_AGENT_API_KEY` etc.) sit above
+  the file, so the GUI should surface "overridden by environment" when a
+  relevant env var is set instead of silently appearing to ignore edits. The
+  Settings modal's "The provider is configured at server start, not from the
+  browser" copy must be replaced when the write path ships.
