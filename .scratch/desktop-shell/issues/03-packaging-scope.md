@@ -42,3 +42,10 @@ understanding of the full tree.
   OV $200–500/yr, EV $300–700+/yr, or Azure Trusted Signing ~$9.99/mo. CI sketch
   for when a remote exists: one `ubuntu-latest` tag-triggered job running
   `electron-builder --linux AppImage deb --publish always` with a `GH_TOKEN`.
+- 2026-08-17 full research sheet, build-script details: electron-builder's
+  Linux defaults are AppImage + Snap, so the build script must pass
+  `--linux AppImage deb` explicitly; on this Arch box AppImage icon handling
+  needs `openjpeg2` (libopenjp2-tools); the packaged app must run `pnpm build`
+  (host + web) before electron-builder so the built GUI is embedded in the
+  artifacts; `releaseType: draft` if releases should be promoted manually.
+  Nothing in the sheet changes the settled decisions.
