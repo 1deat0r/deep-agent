@@ -2,19 +2,25 @@
   "name": "@deep-agent/desktop",
   "version": "0.1.0",
   "description": "deep-agent desktop shell: Electron window + tray over the embedded host",
+  "author": "deep-agent maintainers",
+  "homepage": "https://deep-agent.invalid",
+  "desktopName": "deep-agent.desktop",
   "private": true,
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-builder --linux AppImage deb"
   },
   "dependencies": {
-    "@deep-agent/host": "workspace:*"
+    "@deep-agent/host": "workspace:*",
+    "electron-updater": "^6.6.2"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
-    "electron": "^43.0.0"
+    "electron": "^43.0.0",
+    "electron-builder": "^26.0.12"
   }
 }

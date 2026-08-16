@@ -49,3 +49,12 @@ understanding of the full tree.
   (host + web) before electron-builder so the built GUI is embedded in the
   artifacts; `releaseType: draft` if releases should be promoted manually.
   Nothing in the sheet changes the settled decisions.
+- 2026-08-17 implemented (branch `desktop-shell`): `packages/desktop` gained
+  `electron-builder.yml` (appId `io.deepagent.desktop`, productName
+  `deep-agent`, maintainer `deep-agent maintainers`, targets AppImage + deb,
+  GUI bundled via `extraResources` → `resources/web`; no publish provider) and
+  the `dist` script (`electron-builder --linux AppImage deb`). The
+  auto-updater is wired in `src/update-check.ts` but dormant: it activates
+  only when `DEEP_AGENT_UPDATE_FEED` is set — AppImage then updates silently
+  on quit, the `.deb` shows a download notice pointing at
+  `DEEP_AGENT_DOWNLOADS_URL`.

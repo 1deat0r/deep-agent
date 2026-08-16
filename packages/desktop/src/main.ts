@@ -18,6 +18,7 @@ import type { Host } from '@deep-agent/host';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { wireAutoUpdate } from './update-check.js';
 
 // Wayland + Vulkan is incompatible in Electron 43's GPU path; the window is a
 // text UI, so render through XWayland without GPU acceleration (ticket 05).
@@ -150,6 +151,9 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     quitting = true;
   });
+
+  // Dormant until a release host exists (ticket 03).
+  wireAutoUpdate();
 
   // --- settings IPC (ticket 04): the narrow bridge the renderer may use -----
 

@@ -33,3 +33,14 @@ gives Open/Quit.
 
 Resolved 2026-08-17 on the user's verdict. The `prototype/desktop-embed`
 branch stays throwaway; production packaging scope is ticket 03.
+
+## Comments
+
+- 2026-08-17 implemented (branch `desktop-shell`): the production main
+  (`packages/desktop/src/main.ts`) embeds the host in-process exactly per this
+  ticket — `loadConfig({ host: '127.0.0.1' })` → `createHost` → `server.start`
+  → window loads the served GUI. Single-instance lock, tray Open/Quit, and
+  close-to-tray are wired; the settings path restarts the embedded host
+  in-place (dispose sessions → stop server → start again) instead of a child
+  process. Verified headlessly under xvfb (embedded host serves the GUI + API,
+  CSP header present).

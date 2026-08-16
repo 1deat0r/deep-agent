@@ -1,0 +1,24 @@
+# Desktop-shell packaging (ticket 03): Linux-first, .deb + AppImage (amd64),
+# unsigned. The GUI (packages/web/dist) is bundled as an extra resource and the
+# main resolves it via process.resourcesPath/web. Build with:
+#   pnpm build && pnpm --filter @deep-agent/desktop dist
+appId: io.deepagent.desktop
+productName: deep-agent
+executableName: deep-agent
+directories:
+  output: release
+files:
+  - dist/**/*
+extraResources:
+  - from: ../web/dist
+    to: web
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: deep-agent maintainers
+  category: Development
+deb:
+  artifactName: deep-agent_${version}_amd64.${ext}
+# No publish provider: updates stay dormant until the repo gains a remote and
+# DEEP_AGENT_UPDATE_FEED is configured (ticket 03).
