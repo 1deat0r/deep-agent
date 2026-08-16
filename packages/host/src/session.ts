@@ -254,7 +254,7 @@ export class AgentSession {
         this.deps.events.emit({
           type: 'message_complete',
           sessionId: this.id,
-          message: assistant,
+          message: { kind: 'message', ...assistant },
         });
         messages.push(assistant);
 

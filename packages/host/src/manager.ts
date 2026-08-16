@@ -89,7 +89,9 @@ export class AgentManager {
   }
 
   list(): SessionMeta[] {
-    return [...this.sessions.values()].map((session) => session.meta);
+    return [...this.sessions.values()]
+      .map((session) => session.meta)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
   async spawnChild(
