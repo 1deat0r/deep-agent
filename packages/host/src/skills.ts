@@ -58,7 +58,9 @@ function readSkillInfo(dir: string, name: string): SkillInfo | null {
 
 function requireSafeName(name: string): string {
   if (!NAME_PATTERN.test(name)) {
-    throw new Error(`invalid skill name "${name}": [a-z0-9-]+ only`);
+    throw new Error(
+      `invalid skill name "${name}": must match ^[a-z0-9][a-z0-9-]*$ (case-insensitive)`,
+    );
   }
   return name;
 }
