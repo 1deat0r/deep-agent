@@ -23,6 +23,16 @@ that its own costs are covered.
   cards. 105/105 tests, typechecks clean.
 - **05 Model 1 dry-run plan, 06 Model 3 paper infrastructure** — the
   sovereign agent's first missions (tickets to file when it starts).
+- **05 — Model 1 dry-run: DONE (2026-08-17).** 3/3 real public specimens
+  built and judged acceptable: soroban-defi-analytics#4 CSV export (fixed a
+  pre-existing broken build on the way), pynventory#76 helper tests,
+  pynventory#77 CI workflow. Deliverables under `dry-run/build-*/`.
+  → `issues/05-model1-dry-run.md`.
+- **06 — Model 3 paper infra: DONE (2026-08-17).** Backtest gate built as
+  `packages/backtest` (lookahead-proof engine, cost modeling, benchmarked
+  metrics, 13 tests); paper-broker and live phases specified with
+  owner-approval checkpoints for every real-money step.
+  → `issues/06-paper-trading-infra.md`.
 
 ## Notes
 

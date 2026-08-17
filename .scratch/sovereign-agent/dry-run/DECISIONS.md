@@ -25,3 +25,9 @@ Append-only. Date · decision · predicted confidence · outcome · lesson.
   (4 files pre-existing unformatted; reformatting is out of the issue's scope)
   · C 4/5 · ✓ lint passes on current codebase · Scope discipline: keep the
   workflow green on the current code; note formatting debt to the client.
+- 2026-08-17 · Ticket 06 seams chosen autonomously (user delegated decisions):
+  B1 pure metrics module, B2 lookahead-proof runBacktest simulation (strategy
+  receives only history[0..i]); broker API client and live data excluded from
+  unit tests — they wait for owner credentials · C 4/5 · — · Seams recorded
+  here so the owner can veto before any live phase; the engine itself is
+  credential-free and reversible.
