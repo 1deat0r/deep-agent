@@ -7,40 +7,24 @@ export interface SidebarProps {
   sessions: SessionMeta[];
   selectedId: string | null;
   refreshing: boolean;
-  models: string[];
-  defaultModel: string;
   onSelect: (id: string) => void;
   onCreate: (input: { title?: string; goal?: string; model?: string }) => Promise<void>;
   onRefresh: () => void;
 }
 
 export function Sidebar(props: SidebarProps): JSX.Element {
-  const { sessions, selectedId, refreshing, models, defaultModel, onSelect, onCreate, onRefresh } =
-    props;
-  const [formOpen, setFormOpen] = useState(false);
-  const [title, setTitle] = useState('');
-  const [goal, setGoal] = useState('');
-  const [model, setModel] = useState(defaultModel);
-  const [submitting, setSubmitting] = useState(false);
+  const { sessions, selectedId, refreshing, onSelect, onCreate, onRefresh } = props;
+  const [creating, setCreating] = useState(false);
 
   // The server's manager.list() is not sorted by recency; enforce it here.
   const sorted = [...sessions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
   const submit = async (): Promise<void> => {
-    const trimmedTitle = title.trim();
-    const trimmedGoal = goal.trim();
-    setSubmitting(true);
+    setCreating(true);
     try {
-      await onCreate({
-        ...(trimmedTitle !== '' ? { title: trimmedTitle } : {}),
-        ...(trimmedGoal !== '' ? { goal: trimmedGoal } : {}),
-        ...(model.trim() !== '' ? { model: model.trim() } : {}),
-      });
-      setFormOpen(false);
-      setTitle('');
-      setGoal('');
+      await onCreate({});
     } finally {
-      setSubmitting(false);
+      setCreating(false);
     }
   };
 
@@ -54,7 +38,13 @@ export function Sidebar(props: SidebarProps): JSX.Element {
       </div>
 
       <div className="sidebar__actions">
-        <button type="button" className="btn btn--primary sidebar__new" onClick={() => setFormOpen((o) => !o)}>
+        <button
+          type="button"
+          className="btn btn--primary sidebar__new"
+          onClick={() => void submit()}
+          disabled={creating}
+          title="Create a new session"
+        >
           + New session
         </button>
         <button
@@ -67,50 +57,6 @@ export function Sidebar(props: SidebarProps): JSX.Element {
           ⟳
         </button>
       </div>
-
-      {formOpen && (
-        <div className="sidebar__form">
-          <input
-            className="input"
-            placeholder="Title (optional)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void submit();
-            }}
-            autoFocus
-          />
-          <textarea
-            className="input sidebar__form-goal"
-            placeholder="Goal (optional) — enables auto-continuation"
-            value={goal}
-            rows={2}
-            onChange={(e) => setGoal(e.target.value)}
-          />
-          {models.length > 0 && (
-            <select
-              className="input sidebar__form-model"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              title="Model for this session"
-            >
-              {models.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          )}
-          <div className="sidebar__form-actions">
-            <button type="button" className="btn btn--ghost" onClick={() => setFormOpen(false)}>
-              Cancel
-            </button>
-            <button type="button" className="btn btn--primary" onClick={() => void submit()} disabled={submitting}>
-              Create
-            </button>
-          </div>
-        </div>
-      )}
 
       <nav className="sidebar__list">
         {sorted.length === 0 && <div className="sidebar__empty">No sessions yet</div>}

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   continueSession,
   createSession,
-  getModels,
   deleteSession,
   eventsUrl,
   getConfig,
@@ -143,8 +142,7 @@ type Tab = 'chat' | 'console';
 
 export function App(): JSX.Element {
   const [config, setConfig] = useState<AppConfig | null>(null);
-  const [models, setModels] = useState<string[]>([]);
-  const [sessions, setSessions] = useState<SessionMeta[]>([]);
+    const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [detail, setDetail] = useState<SessionDetail | null>(null);
@@ -209,8 +207,6 @@ export function App(): JSX.Element {
   const loadConfig = useCallback(async (): Promise<void> => {
     try {
       setConfig(await getConfig());
-      const modelsInfo = await getModels();
-      setModels(modelsInfo.models);
     } catch (err) {
       pushToast('error', err instanceof Error ? err.message : String(err));
     }
@@ -462,8 +458,6 @@ export function App(): JSX.Element {
         selectedId={selectedId}
         refreshing={refreshing}
         onSelect={setSelectedId}
-        models={models}
-        defaultModel={config?.provider.model ?? ''}
         onCreate={handleCreate}
         onRefresh={() => void loadSessions()}
       />

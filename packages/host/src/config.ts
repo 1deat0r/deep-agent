@@ -19,14 +19,15 @@ export const DEFAULT_CONFIG: HostConfig = {
   wallet: {
     budgetUsd: 5,
     rates: {
-      'deepseek-v4-flash': { inputPerMUsd: 0.27, outputPerMUsd: 1.1 },
+      'deepseek-v4-flash': { inputPerMUsd: 0.44, outputPerMUsd: 1.32 },
+      'deepseek-v4-pro': { inputPerMUsd: 1.32, outputPerMUsd: 3.96 },
       'mock-model': { inputPerMUsd: 0, outputPerMUsd: 0 },
     },
   },
   provider: {
     id: 'openai-compatible',
     baseUrl: 'https://api.deepseek.com',
-    model: 'deepseek-v4-flash',
+    model: 'deepseek-v4-pro',
     temperature: 0.3,
   },
 };

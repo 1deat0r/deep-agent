@@ -22,7 +22,7 @@ Options (serve):
   --host <addr>          Override the listen address
   --data-dir <path>      Where sessions live
   --provider <id>        "openai-compatible" (default) or "mock"
-  --model <name>         Model name (default deepseek-chat)
+  --model <name>         Model name (default deepseek-v4-pro)
   --base-url <url>       OpenAI-compatible endpoint (default https://api.deepseek.com)
 
 Environment:
