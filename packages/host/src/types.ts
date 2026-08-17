@@ -114,6 +114,11 @@ export interface HostConfig {
   compactAtTokens: number;
   /** Keep roughly this many tokens of recent messages after compaction. */
   compactKeepTokens: number;
+  /** Cost accounting (sovereign-agent ticket 03): budget + per-model $/M-token rates. */
+  wallet: {
+    budgetUsd: number;
+    rates: Record<string, { inputPerMUsd: number; outputPerMUsd: number }>;
+  };
   provider: {
     id: 'openai-compatible' | 'mock';
     baseUrl?: string;

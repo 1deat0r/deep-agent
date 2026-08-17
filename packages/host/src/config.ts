@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { validateWallet } from './wallet.js';
 import type { HostConfig } from './types.js';
 
 export const DEFAULT_CONFIG: HostConfig = {
@@ -14,6 +15,13 @@ export const DEFAULT_CONFIG: HostConfig = {
   maxKernelRestarts: 3,
   compactAtTokens: 24_000,
   compactKeepTokens: 8_000,
+  wallet: {
+    budgetUsd: 5,
+    rates: {
+      'deepseek-v4-flash': { inputPerMUsd: 0.27, outputPerMUsd: 1.1 },
+      'mock-model': { inputPerMUsd: 0, outputPerMUsd: 0 },
+    },
+  },
   provider: {
     id: 'openai-compatible',
     baseUrl: 'https://api.deepseek.com',
@@ -108,6 +116,7 @@ export function loadConfig(overrides: ConfigOverrides = {}): HostConfig {
   config = deepMerge(config, env);
   config = deepMerge(config, overrides as unknown as Record<string, unknown>);
 
+  validateWallet(config.wallet);
   mkdirSync(config.dataDir, { recursive: true });
   return config;
 }

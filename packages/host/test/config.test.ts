@@ -92,4 +92,47 @@ describe('config', () => {
     // file value that is not overridden by env still applies
     expect(config.maxDepth).toBe(7);
   });
+
+  it('merges the wallet block from the file over defaults', () => {
+    const xdg = join(root, 'xdg');
+    process.env.XDG_CONFIG_HOME = xdg;
+    const configDir = join(xdg, 'deep-agent');
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({
+        wallet: {
+          budgetUsd: 42,
+          rates: { 'other-model': { inputPerMUsd: 0.5, outputPerMUsd: 2 } },
+        },
+      }),
+    );
+
+    const config = loadConfig();
+    expect(config.wallet.budgetUsd).toBe(42);
+    expect(config.wallet.rates['other-model']).toEqual({ inputPerMUsd: 0.5, outputPerMUsd: 2 });
+    // default rates survive the merge
+    expect(config.wallet.rates['deepseek-v4-flash']).toBeDefined();
+  });
+
+  it('rejects a negative wallet budget at load', () => {
+    const xdg = join(root, 'xdg');
+    process.env.XDG_CONFIG_HOME = xdg;
+    const configDir = join(xdg, 'deep-agent');
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(join(configDir, 'config.json'), JSON.stringify({ wallet: { budgetUsd: -1 } }));
+    expect(() => loadConfig()).toThrowError(/budgetUsd/);
+  });
+
+  it('rejects a non-numeric rate at load', () => {
+    const xdg = join(root, 'xdg');
+    process.env.XDG_CONFIG_HOME = xdg;
+    const configDir = join(xdg, 'deep-agent');
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({ wallet: { rates: { bad: { inputPerMUsd: 'x', outputPerMUsd: 1 } } } }),
+    );
+    expect(() => loadConfig()).toThrowError(/inputPerMUsd/);
+  });
 });
