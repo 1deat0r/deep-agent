@@ -31,3 +31,15 @@ Resolved 2026-08-17; the user confirmed shared understanding.
   happens after the turn using its actual usage.
 - **Visibility**: `GET /api/wallet` (budget, spent, remaining, per-model
   rates) and a GUI line in Settings.
+
+## Comments
+
+- 2026-08-17 spec amendments (post-review): `POST /api/wallet {budgetUsd}`
+  implements the "resumable after top-up" promise — the wallet is top-upable
+  at runtime (GUI Top-up control) and a `budget exhausted` goal resumes
+  automatically on its next turn; charging is **once per turn** (accumulated
+  across model calls and compaction summarization) so the overrun is bounded
+  by one turn's cost exactly as the answer states. The model-facing
+  `rlm.wallet.status()` and the `self-governance` skill were added on the
+  user's direct request (the decision matrix) — recorded here so the spec
+  stays the single source of truth.

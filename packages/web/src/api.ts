@@ -80,6 +80,17 @@ export function getWallet(): Promise<{
   );
 }
 
+export function topUpWallet(budgetUsd: number): Promise<{
+  budgetUsd: number;
+  spentUsd: number;
+  remainingUsd: number;
+}> {
+  return apiFetch<{ budgetUsd: number; spentUsd: number; remainingUsd: number }>(
+    '/api/wallet',
+    { method: 'POST', body: JSON.stringify({ budgetUsd }) },
+  );
+}
+
 export function getSessions(): Promise<{ sessions: SessionMeta[] }> {
   return apiFetch<{ sessions: SessionMeta[] }>('/api/sessions');
 }
@@ -130,10 +141,14 @@ export function runKernel(id: string, code: string): Promise<ExecResult> {
   });
 }
 
-export function setGoal(id: string, objective: string): Promise<{ goal: GoalState }> {
+export function setGoal(
+  id: string,
+  objective: string,
+  sovereign = false,
+): Promise<{ goal: GoalState }> {
   return apiFetch<{ goal: GoalState }>(`/api/sessions/${id}/goal`, {
     method: 'POST',
-    body: JSON.stringify({ objective }),
+    body: JSON.stringify({ objective, sovereign }),
   });
 }
 

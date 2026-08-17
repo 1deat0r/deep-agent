@@ -94,6 +94,16 @@ describe('Wallet', () => {
     expect(new Wallet(walletArgs(0)).canRunTurn()).toBe(false);
   });
 
+  it('setBudgetUsd tops up the budget and rejects negative values', () => {
+    const wallet = new Wallet(walletArgs());
+    wallet.charge('s1', 'model-a', 1_000_000, 0); // spent 0.27
+    wallet.setBudgetUsd(10);
+    expect(wallet.budgetUsd()).toBe(10);
+    expect(wallet.remainingUsd()).toBeCloseTo(10 - 0.27, 10);
+    expect(wallet.canRunTurn()).toBe(true);
+    expect(() => wallet.setBudgetUsd(-1)).toThrowError(/budget/);
+  });
+
   it('charge throws WalletError when the model has no rate', () => {
     const wallet = new Wallet(walletArgs());
     expect(() => wallet.charge('s1', 'model-z', 1, 1)).toThrowError(WalletError);

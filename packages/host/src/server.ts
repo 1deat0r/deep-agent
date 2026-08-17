@@ -190,12 +190,27 @@ export class HostServer {
       return;
     }
 
-    if (pathname === '/api/wallet') {
+    if (pathname === '/api/wallet' && req.method === 'GET') {
       sendJson(res, 200, {
-        budgetUsd: this.config.wallet.budgetUsd,
+        budgetUsd: this.wallet.budgetUsd(),
         spentUsd: this.wallet.spentUsd(),
         remainingUsd: this.wallet.remainingUsd(),
         rates: this.config.wallet.rates,
+      });
+      return;
+    }
+    if (pathname === '/api/wallet' && req.method === 'POST') {
+      const body = await readJson(req);
+      const budgetUsd = Number(body.budgetUsd);
+      if (!Number.isFinite(budgetUsd) || budgetUsd < 0) {
+        sendJson(res, 400, { error: 'budgetUsd must be a non-negative number' });
+        return;
+      }
+      this.wallet.setBudgetUsd(budgetUsd);
+      sendJson(res, 200, {
+        budgetUsd: this.wallet.budgetUsd(),
+        spentUsd: this.wallet.spentUsd(),
+        remainingUsd: this.wallet.remainingUsd(),
       });
       return;
     }
@@ -239,6 +254,7 @@ export class HostServer {
         title: typeof body.title === 'string' ? body.title : undefined,
         goal: typeof body.goal === 'string' && body.goal !== '' ? body.goal : null,
         autoContinue: undefined,
+        sovereign: body.sovereign === true,
         model:
           typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined,
       });
@@ -358,7 +374,7 @@ export class HostServer {
         status: 'active',
         rounds: 0,
         maxRounds: this.config.maxAutoRounds,
-        sovereign: false,
+        sovereign: body.sovereign === true,
         updatedAt: new Date().toISOString(),
       };
       session.meta.autoContinue = true;

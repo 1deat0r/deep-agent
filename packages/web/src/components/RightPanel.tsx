@@ -7,7 +7,7 @@ export interface RightPanelProps {
   meta: SessionMeta;
   children: ChildSummary[];
   config: AppConfig | null;
-  onSetGoal: (objective: string) => Promise<void>;
+  onSetGoal: (objective: string, sovereign: boolean) => Promise<void>;
   onSelectChild: (id: string) => void;
   onDelete: () => void;
 }
@@ -16,6 +16,7 @@ export function RightPanel(props: RightPanelProps): JSX.Element {
   const { meta, children, config, onSetGoal, onSelectChild, onDelete } = props;
   const [goalInput, setGoalInput] = useState('');
   const [goalOpen, setGoalOpen] = useState(false);
+  const [sovereign, setSovereign] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const workspace = config ? `${config.dataDir}/sessions/${meta.id}/workspace` : null;
@@ -25,8 +26,9 @@ export function RightPanel(props: RightPanelProps): JSX.Element {
     if (objective === '' || busy) return;
     setBusy(true);
     try {
-      await onSetGoal(objective);
+      await onSetGoal(objective, sovereign);
       setGoalInput('');
+      setSovereign(false);
       setGoalOpen(false);
     } finally {
       setBusy(false);
@@ -97,6 +99,15 @@ export function RightPanel(props: RightPanelProps): JSX.Element {
                   onChange={(e) => setGoalInput(e.target.value)}
                   autoFocus
                 />
+                <label className="goal-card__sovereign">
+                  <input
+                    type="checkbox"
+                    checked={sovereign}
+                    onChange={(e) => setSovereign(e.target.checked)}
+                  />
+                  Sovereign — never pauses on messages; runs until done, budget
+                  zero, or an approval wait
+                </label>
                 <div className="goal-card__actions">
                   <button type="button" className="btn btn--ghost btn--small" onClick={() => setGoalOpen(false)}>
                     Cancel

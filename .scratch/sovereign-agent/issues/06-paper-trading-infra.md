@@ -20,10 +20,13 @@ owner-approved.
 feeBps, slippageBps })` — decisions at the close see only `history[0..i]`
 (lookahead-proof by construction), fills at the next open with slippage and
 fees, metrics vs buy-and-hold benchmark (totalReturn, benchmarkReturn,
-sharpe, maxDrawdown, tradeCount). 13 tests. A strategy promotes past the gate
-only if, net of modeled costs: benchmark beat across ≥2 historical regimes,
-max drawdown under a stated cap, ≥60 executed trades, no lookahead by
-construction. Data source (free first): Alpaca Basic (IEX real-time +
+sharpe, maxDrawdown, tradeCount). 13 tests. The gate itself is
+`promotionGate(regimes, criteria)` — every regime must beat its benchmark net
+of modeled costs (min alpha), hold the drawdown cap, and trade enough for
+significance; defaults 2 regimes / 30 trades per regime / -20% max drawdown /
+1% net alpha; per-regime failure reasons. 19 tests total. A strategy promotes
+past the gate only by passing it across ≥2 historical regimes supplied by the
+strategy developer. Data source (free first): Alpaca Basic (IEX real-time +
 delayed SIP) or the free tier for historical bars — owner sets up the data
 feed in the session workspace, not in this repo.
 

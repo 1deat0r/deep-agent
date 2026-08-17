@@ -135,3 +135,63 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     },
   };
 }
+
+export interface GateCriteria {
+  /** Minimum number of regimes that must each pass. */
+  minRegimes?: number;
+  /** Minimum executed trades per regime (default 30; ticket 06 asks ≥60 total). */
+  minTradesPerRegime?: number;
+  /** Drawdown cap: the regime's drawdown must not be deeper than this (default -0.2). */
+  maxDrawdown?: number;
+  /** Minimum net alpha over the benchmark per regime (default 0.01 = 1%). */
+  minAlphaOverBenchmark?: number;
+}
+
+export interface RegimeResult {
+  name: string;
+  result: BacktestResult;
+}
+
+export interface GateVerdict {
+  passed: boolean;
+  reasons: string[];
+}
+
+/**
+ * The paper-trading promotion gate (ticket 06): every regime must beat its
+ * benchmark net of modeled costs, hold the drawdown cap, and trade enough for
+ * the result to be meaningful. Returns a verdict with per-regime reasons.
+ */
+export function promotionGate(
+  regimes: RegimeResult[],
+  criteria: GateCriteria = {},
+): GateVerdict {
+  const minRegimes = criteria.minRegimes ?? 2;
+  const minTradesPerRegime = criteria.minTradesPerRegime ?? 30;
+  const maxDrawdown = criteria.maxDrawdown ?? -0.2;
+  const minAlphaOverBenchmark = criteria.minAlphaOverBenchmark ?? 0.01;
+
+  const reasons: string[] = [];
+  if (regimes.length < minRegimes) {
+    reasons.push(`needs at least ${minRegimes} regimes, got ${regimes.length}`);
+  }
+  for (const { name, result } of regimes) {
+    const alpha = result.metrics.totalReturn - result.metrics.benchmarkReturn;
+    if (alpha < minAlphaOverBenchmark) {
+      reasons.push(
+        `${name}: net alpha ${alpha.toFixed(4)} below required ${minAlphaOverBenchmark}`,
+      );
+    }
+    if (result.metrics.maxDrawdown < maxDrawdown) {
+      reasons.push(
+        `${name}: drawdown ${result.metrics.maxDrawdown.toFixed(4)} deeper than cap ${maxDrawdown}`,
+      );
+    }
+    if (result.metrics.tradeCount < minTradesPerRegime) {
+      reasons.push(
+        `${name}: ${result.metrics.tradeCount} trades below required ${minTradesPerRegime}`,
+      );
+    }
+  }
+  return { passed: reasons.length === 0, reasons };
+}

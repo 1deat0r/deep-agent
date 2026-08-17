@@ -31,3 +31,9 @@ Append-only. Date · decision · predicted confidence · outcome · lesson.
   unit tests — they wait for owner credentials · C 4/5 · — · Seams recorded
   here so the owner can veto before any live phase; the engine itself is
   credential-free and reversible.
+- 2026-08-17 · Spec-review fixes: implemented the promotion gate as code
+  (promotionGate, 6 tests) rather than prose; per-turn wallet charging with
+  compaction counted (spec's one-turn overrun bound honored); top-up +
+  blocked→resume; sovereign flag through API/GUI · C 4/5 · ✓ all six review
+  findings resolved, 128/128 tests · Review loops pay: the gate existed only
+  as prose until an independent reviewer read the ticket against the diff.

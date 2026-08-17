@@ -59,12 +59,14 @@ export class AgentManager {
     title: string | undefined;
     goal: string | null | undefined;
     autoContinue: boolean | undefined;
+    sovereign: boolean | undefined;
     model: string | undefined;
   }): Promise<AgentSession> {
     const session = await AgentSession.create(this.depsFor(), {
       title: options.title,
       goal: options.goal,
       autoContinue: options.autoContinue ?? (options.goal ? true : false),
+      sovereign: options.sovereign ?? false,
       role: 'root',
       parentId: null,
       depth: 0,
@@ -126,6 +128,7 @@ export class AgentManager {
       depth: parent.meta.depth + 1,
       goal: null,
       autoContinue: false,
+      sovereign: false,
       model: parent.meta.model,
     });
     child.meta.parentTitle = parent.meta.title;

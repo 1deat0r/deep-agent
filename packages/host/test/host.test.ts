@@ -427,6 +427,33 @@ describe('approval gate', () => {
   });
 });
 
+describe('wallet behaviour in the loop', () => {
+  it('a budget-exhausted goal resumes after a top-up', async () => {
+    const host = makeHost({ wallet: { ...DEFAULT_CONFIG.wallet, budgetUsd: 0 } });
+    const session = await host.manager.createSession({ title: 'a', goal: 'ship it' });
+    await session.runTurn({ content: 'start' });
+    expect(session.meta.goal?.status).toBe('blocked');
+    expect(session.meta.goal?.blockedReason).toBe('budget exhausted');
+
+    host.wallet.setBudgetUsd(5);
+    rootScripts.push(textTurn('back to work'), textTurn('extra'));
+    await session.runTurn({ content: 'resume me' });
+    await waitFor(() => session.meta.goal?.status === 'active', 5000);
+  });
+
+  it('charges the wallet once per turn, not per model call', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'a' });
+    rootScripts.push(toolCallTurn('ipython', { code: '1+1' }, 'c1'), textTurn('done'));
+    await session.runTurn({ content: 'multi-call turn' });
+    await waitFor(() => session.meta.status === 'idle', 15000);
+    const lines = readFileSync(join(host.config.dataDir, 'wallet.json'), 'utf8')
+      .trim()
+      .split('\n');
+    expect(lines).toHaveLength(1);
+  });
+});
+
 describe('models', () => {
   it('sessions carry their model, children inherit it, and the API lists models', async () => {
     const host = makeHost();

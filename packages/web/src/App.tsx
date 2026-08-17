@@ -426,9 +426,9 @@ export function App(): JSX.Element {
   );
 
   const handleSetGoal = useCallback(
-    async (objective: string): Promise<void> => {
+    async (objective: string, sovereign = false): Promise<void> => {
       if (selectedId === null) return;
-      const { goal } = await setGoal(selectedId, objective);
+      const { goal } = await setGoal(selectedId, objective, sovereign);
       setDetail((prev) => (prev ? { ...prev, meta: { ...prev.meta, goal, autoContinue: true } } : prev));
       patchSessions(selectedId, { goal, autoContinue: true });
     },

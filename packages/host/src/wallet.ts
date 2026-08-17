@@ -42,7 +42,7 @@ interface SpendLine {
 }
 
 export class Wallet {
-  private readonly budgetLimitUsd: number;
+  private budgetLimitUsd: number;
   private readonly rates: WalletRates;
   private readonly path: string;
   private spent = 0;
@@ -84,6 +84,14 @@ export class Wallet {
 
   canRunTurn(): boolean {
     return this.remainingUsd() > 0;
+  }
+
+  /** Top up (or lower) the budget at runtime; spent is unchanged. */
+  setBudgetUsd(budgetUsd: number): void {
+    if (!Number.isFinite(budgetUsd) || budgetUsd < 0) {
+      throw new WalletError(`budgetUsd must be a non-negative number, got ${String(budgetUsd)}`);
+    }
+    this.budgetLimitUsd = budgetUsd;
   }
 
   charge(sessionId: string, model: string, inputTokens: number, outputTokens: number): WalletCharge {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getSkills, getWallet } from '../api';
+import { getSkills, getWallet, topUpWallet } from '../api';
 import {
   applyDesktopSettings,
   checkForDesktopUpdates,
@@ -36,6 +36,13 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
     spentUsd: number;
     remainingUsd: number;
   } | null>(null);
+  const [topUpInput, setTopUpInput] = useState('');
+
+  const refreshWallet = (): void => {
+    getWallet()
+      .then((res) => setWallet(res))
+      .catch(() => undefined);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +55,14 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
       cancelled = true;
     };
   }, []);
+
+  const topUp = async (): Promise<void> => {
+    const budgetUsd = Number(topUpInput);
+    if (!Number.isFinite(budgetUsd) || budgetUsd < 0) return;
+    await topUpWallet(budgetUsd);
+    setTopUpInput('');
+    refreshWallet();
+  };
   const [bridgeState, setBridgeState] = useState<DesktopSettingsState | null>(null);
   const [form, setForm] = useState<ProviderForm>({
     id: 'openai-compatible',
@@ -195,12 +210,30 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
                     <dt>exec timeout (ms)</dt>
                     <dd>{config.execTimeoutMs === 0 ? '0 (disabled)' : config.execTimeoutMs}</dd>
                   </div>
-                  <div className="info-row">
+                  <div className="info-row info-row--stack">
                     <dt>wallet</dt>
                     <dd>
                       {wallet === null
                         ? '—'
                         : `$${wallet.remainingUsd.toFixed(2)} left of $${wallet.budgetUsd.toFixed(2)} ($${wallet.spentUsd.toFixed(2)} spent)`}
+                      <span className="settings-form__field" style={{ marginTop: 6 }}>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          placeholder="new budget ($)"
+                          value={topUpInput}
+                          onChange={(e) => setTopUpInput(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn--small"
+                          onClick={() => void topUp()}
+                          disabled={topUpInput.trim() === ''}
+                        >
+                          Top up
+                        </button>
+                      </span>
                     </dd>
                   </div>
                 </dl>

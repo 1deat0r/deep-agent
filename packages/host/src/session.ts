@@ -121,6 +121,8 @@ export class AgentSession {
   private continuationScheduled = false;
   private continuationTimer: NodeJS.Timeout | null = null;
   private pauseAfterTurn = false;
+  /** Token usage accrued by this turn's model calls (ticket 03). */
+  private turnUsage = { input: 0, output: 0 };
 
   private constructor(meta: SessionMeta, transcript: TranscriptEntry[], deps: SessionDeps) {
     this.id = meta.id;
@@ -149,6 +151,7 @@ export class AgentSession {
       depth: number | undefined;
       goal: string | null | undefined;
       autoContinue: boolean | undefined;
+      sovereign: boolean | undefined;
       model: string | undefined;
     },
   ): Promise<AgentSession> {
@@ -164,7 +167,9 @@ export class AgentSession {
       createdAt: now,
       updatedAt: now,
       childIds: [],
-      goal: options.goal ? newGoal(options.goal, deps.config.maxAutoRounds) : null,
+      goal: options.goal
+        ? newGoal(options.goal, deps.config.maxAutoRounds, options.sovereign ?? false)
+        : null,
       autoContinue: options.autoContinue ?? false,
     };
     deps.store.saveMeta(meta);
@@ -258,6 +263,19 @@ export class AgentSession {
     this.deps.events.emit({ type: 'turn_start', sessionId: this.id, turnId });
     this.abort = new AbortController();
 
+    // A top-up resumes a budget-exhausted goal on its next turn (ticket 03).
+    if (
+      this.meta.goal?.status === 'blocked' &&
+      this.meta.goal.blockedReason === 'budget exhausted' &&
+      this.deps.wallet.canRunTurn()
+    ) {
+      this.meta.goal.status = 'active';
+      delete this.meta.goal.blockedReason;
+      this.meta.goal.updatedAt = new Date().toISOString();
+      this.persistGoal();
+      this.deps.events.emit({ type: 'goal_updated', sessionId: this.id, goal: this.meta.goal });
+    }
+
     // Wallet gate (ticket 03): no balance, no model calls.
     if (!this.deps.wallet.canRunTurn()) {
       if (this.meta.goal && this.meta.goal.status === 'active') {
@@ -280,6 +298,7 @@ export class AgentSession {
     }
 
     const client = this.deps.createClient({ role: this.meta.role, model: this.meta.model });
+    this.turnUsage = { input: 0, output: 0 };
 
     let finalText = '';
     try {
@@ -311,6 +330,17 @@ export class AgentSession {
         }
       }
       if (finalText === '') finalText = '(tool iteration limit reached)';
+      // One wallet charge per turn (ticket 03): provider usage where
+      // available, estimates otherwise. A missing rate throws — uncounted
+      // spend must fail loud rather than proceed silently.
+      if (this.turnUsage.input > 0 || this.turnUsage.output > 0) {
+        this.deps.wallet.charge(
+          this.id,
+          this.meta.model,
+          this.turnUsage.input,
+          this.turnUsage.output,
+        );
+      }
       return this.finishTurn(turnId, finalText, null);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -449,19 +479,29 @@ export class AgentSession {
     if (prefix.length === 0) return;
 
     let summary = '';
+    const compactionMessages: ChatMessage[] = [
+      { role: 'system', content: COMPACTION_PROMPT },
+      { role: 'user', content: renderMessagePrefix(prefix) },
+    ];
+    let usage: LlmUsage | undefined;
     try {
-      for await (const chunk of client.streamChat([
-        { role: 'system', content: COMPACTION_PROMPT },
-        { role: 'user', content: renderMessagePrefix(prefix) },
-      ])) {
+      for await (const chunk of client.streamChat(compactionMessages)) {
         if (chunk.type === 'delta') summary += chunk.content;
         if (chunk.type === 'error') throw new Error(chunk.message);
-        if (chunk.type === 'done') break;
+        if (chunk.type === 'done') {
+          usage = chunk.usage;
+          break;
+        }
       }
     } catch {
-      // Summarization is best-effort: on failure, proceed with the full context.
+      // Summarization is best-effort: on failure, proceed with the full
+      // context. The failed call still consumed tokens — count it.
+      this.turnUsage.input += messagesTokens(compactionMessages);
+      this.turnUsage.output += estimateTokens(summary);
       return;
     }
+    this.turnUsage.input += usage?.promptTokens ?? messagesTokens(compactionMessages);
+    this.turnUsage.output += usage?.completionTokens ?? estimateTokens(summary);
     if (summary.trim() === '') return;
     // The marker is append-only and lands at the transcript tail, so it must
     // carry the cut index: the transcript index of the first kept message.
@@ -571,14 +611,10 @@ export class AgentSession {
         function: { name: call.name, arguments: call.arguments },
       }));
     // Charge the wallet with provider-reported usage when available, token
-    // estimates otherwise (ticket 03). A missing rate throws — uncounted
-    // spend must fail loud rather than proceed silently.
-    this.deps.wallet.charge(
-      this.id,
-      this.meta.model,
-      usage?.promptTokens ?? messagesTokens(messages),
-      usage?.completionTokens ?? estimateTokens(content),
-    );
+    // estimates otherwise (ticket 03). Accumulated per turn; charged once in
+    // doRunTurn.
+    this.turnUsage.input += usage?.promptTokens ?? messagesTokens(messages);
+    this.turnUsage.output += usage?.completionTokens ?? estimateTokens(content);
     return {
       role: 'assistant',
       content: content === '' ? null : content,
