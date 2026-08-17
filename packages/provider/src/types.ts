@@ -26,6 +26,10 @@ export interface ToolDef {
 export interface LlmUsage {
   promptTokens: number | undefined;
   completionTokens: number | undefined;
+  /** Prompt tokens served from the provider's prompt cache (OpenAI/DeepSeek). */
+  cacheHitTokens?: number;
+  /** Prompt tokens that missed the cache (DeepSeek reports these; OpenAI derives them). */
+  cacheMissTokens?: number;
 }
 
 export type LlmChunk =
@@ -46,6 +50,12 @@ export interface LlmRequestOptions {
   signal?: AbortSignal;
   /** Extra headers merged over defaults (e.g. per-request overrides). */
   headers?: Record<string, string>;
+  /**
+   * Explicit reasoning effort (OpenAI o-series and DeepSeek reasoning
+   * models). Sent as `reasoning_effort` in the request body only when set,
+   * so providers that don't support it never see the field.
+   */
+  reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export interface LlmClient {

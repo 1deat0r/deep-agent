@@ -99,6 +99,7 @@ export class OpenAICompatibleClient implements LlmClient {
     if (tools && tools.length > 0) body.tools = tools;
     const maxTokens = options?.maxTokens ?? this.config.maxTokens;
     if (maxTokens !== undefined) body.max_tokens = maxTokens;
+    if (options?.reasoningEffort !== undefined) body.reasoning_effort = options.reasoningEffort;
 
     let response: Response;
     try {
@@ -155,8 +156,33 @@ export class OpenAICompatibleClient implements LlmClient {
         return [{ type: 'error', message: `provider stream error: ${err.message ?? 'unknown'}` }];
       }
 
-      const usageRaw = parsed.usage as { prompt_tokens?: number; completion_tokens?: number } | undefined;
+      const usageRaw = parsed.usage as
+        | {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            prompt_tokens_details?: { cached_tokens?: number };
+            prompt_cache_hit_tokens?: number;
+            prompt_cache_miss_tokens?: number;
+          }
+        | undefined;
       if (usageRaw) {
+        // Normalize the two prompt-cache wire shapes. DeepSeek reports a
+        // hit/miss split directly; OpenAI reports only cached tokens inside
+        // prompt_tokens_details (miss = prompt - cached).
+        let cacheHitTokens: number | undefined;
+        let cacheMissTokens: number | undefined;
+        if (
+          typeof usageRaw.prompt_cache_hit_tokens === 'number' ||
+          typeof usageRaw.prompt_cache_miss_tokens === 'number'
+        ) {
+          cacheHitTokens = usageRaw.prompt_cache_hit_tokens;
+          cacheMissTokens = usageRaw.prompt_cache_miss_tokens;
+        } else if (typeof usageRaw.prompt_tokens_details?.cached_tokens === 'number') {
+          cacheHitTokens = usageRaw.prompt_tokens_details.cached_tokens;
+          if (typeof usageRaw.prompt_tokens === 'number') {
+            cacheMissTokens = usageRaw.prompt_tokens - cacheHitTokens;
+          }
+        }
         return [
           {
             type: 'done',
@@ -164,6 +190,8 @@ export class OpenAICompatibleClient implements LlmClient {
             usage: {
               promptTokens: usageRaw.prompt_tokens,
               completionTokens: usageRaw.completion_tokens,
+              ...(cacheHitTokens !== undefined ? { cacheHitTokens } : {}),
+              ...(cacheMissTokens !== undefined ? { cacheMissTokens } : {}),
             },
           },
         ];
