@@ -9,6 +9,21 @@ researched, owner-approved business model — all under one standing guardrail:
 the accounts and pays the API bill; the agent's job is to earn enough margin
 that its own costs are covered.
 
+## Implementation status (2026-08-17)
+
+- **02 sovereign mode** — implemented: `sovereign: true` on goal creation,
+  never-pause semantics, heartbeat re-arm (`heartbeatMs`, default 5 min),
+  RLM + system prompt + docs updated, host tests green.
+- **03 wallet** — implemented: `packages/host/src/wallet.ts` (costUsd, JSONL
+  persistence, validation), charged per model call with estimate fallback,
+  budget-zero → goal blocked, `GET /api/wallet`, Settings shows the balance.
+- **04 approval gate** — implemented: `packages/host/src/approvals.ts`
+  (registry + transcript-derived pending), `waiting_approval` goal state,
+  `rlm.approval.request(...)`, `GET/POST /api/approvals`, GUI approve/deny
+  cards. 105/105 tests, typechecks clean.
+- **05 Model 1 dry-run plan, 06 Model 3 paper infrastructure** — the
+  sovereign agent's first missions (tickets to file when it starts).
+
 ## Notes
 
 - Domain: `AGENTS.md` (one built-in tool: `ipython`; host-owned state in TS;
