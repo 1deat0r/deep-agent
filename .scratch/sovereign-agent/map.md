@@ -29,12 +29,25 @@ that its own costs are covered.
   trading, writing); moving or risking real money is never agent-only.
 - **Scope (user, 2026-08-17): the agent researches and proposes 3 concrete
   business models; the user picks one before any real money moves.**
+- **02 — Sovereign goal mode: per-goal flag.** `sovereign: true` on goal
+  creation; the goal never pauses on user messages (they append to the
+  transcript and are answered at the next round boundary); heartbeat re-entry
+  after a configurable idle interval (default 5 min); interrupt always stops
+  it instantly. → `issues/02-sovereign-goal-mode.md`.
+- **03 — Cost accounting: host-global wallet.** Provider token usage with
+  `estimateTokens` fallback; `wallet: { budgetUsd, rates }` in config; spend
+  appended to `<dataDir>/wallet.json`; budget zero → goal `blocked` with
+  reason `budget exhausted`; `GET /api/wallet` + GUI visibility.
+  → `issues/03-cost-accounting-wallet.md`.
+- **04 — Approval gate: kernel request → user decision.** The model asks via
+  `rlm.approval.request(...)` (host_request kind `approval_request`); goal
+  status `waiting_approval`; transcript records both the request and the
+  `approval_decision`; the user decides via GUI card or
+  `GET/POST /api/approvals`. → `issues/04-approval-gate.md`.
 
 ## Not yet specified
 
-- Sovereign goal-mode semantics (ticket 02).
-- Cost accounting + wallet design (ticket 03).
-- Approval-gate protocol shape (ticket 04).
+- The business model to run — waits on ticket 01's research.
 
 ## Out of scope
 
