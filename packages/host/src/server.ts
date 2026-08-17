@@ -80,8 +80,8 @@ export interface ServerOptions {
   config: HostConfig;
   manager: AgentManager;
   webDir?: string;
-  wallet?: Wallet;
-  approvals?: ApprovalRegistry;
+  wallet: Wallet;
+  approvals: ApprovalRegistry;
 }
 
 export class HostServer {
@@ -95,14 +95,8 @@ export class HostServer {
   constructor(options: ServerOptions) {
     this.config = options.config;
     this.manager = options.manager;
-    this.wallet =
-      options.wallet ??
-      new Wallet({
-        budgetUsd: this.config.wallet.budgetUsd,
-        rates: this.config.wallet.rates,
-        path: join(this.config.dataDir, 'wallet.json'),
-      });
-    this.approvals = options.approvals ?? new ApprovalRegistry();
+    this.wallet = options.wallet;
+    this.approvals = options.approvals;
     this.webDir = options.webDir ?? process.env.DEEP_AGENT_WEB_DIR ?? defaultWebDir();
   }
 

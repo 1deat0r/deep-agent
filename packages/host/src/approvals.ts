@@ -35,11 +35,10 @@ export class ApprovalRegistry {
       sessionId: input.sessionId,
       summary: input.summary,
       detail: input.detail ?? '',
-      amountUsd: input.amountUsd,
+      ...(input.amountUsd !== undefined ? { amountUsd: input.amountUsd } : {}),
       status: 'pending',
       note: '',
       createdAt: new Date().toISOString(),
-      decidedAt: undefined,
     };
     this.approvals.set(id, approval);
     return approval;
@@ -83,11 +82,10 @@ export function derivePending(
         sessionId: entry.sessionId,
         summary: entry.summary,
         detail: entry.detail,
-        amountUsd: entry.amountUsd,
+        ...(entry.amountUsd !== undefined ? { amountUsd: entry.amountUsd } : {}),
         status: 'pending',
         note: '',
         createdAt: entry.createdAt,
-        decidedAt: undefined,
       });
     }
   }

@@ -92,11 +92,11 @@ export interface Approval {
   sessionId: string;
   summary: string;
   detail: string;
-  amountUsd: number | undefined;
+  amountUsd?: number;
   status: ApprovalStatus;
   note: string;
   createdAt: string;
-  decidedAt: string | undefined;
+  decidedAt?: string;
 }
 
 export type HostEvent =
