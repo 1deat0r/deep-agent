@@ -1,6 +1,6 @@
 # 05: Web composer footer
 
-Status: unclaimed
+Status: resolved
 
 Pure `usageStats(transcript)` helper (unit-tested) returning session + last-turn
 totals with cache hit-rate. Composer footer under the textarea: model select

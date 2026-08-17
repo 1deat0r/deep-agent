@@ -112,6 +112,17 @@ export function getSession(id: string): Promise<SessionDetail> {
   return apiFetch<SessionDetail>(`/api/sessions/${id}`);
 }
 
+/** Update per-session model / reasoning effort; returns the fresh meta. */
+export function updateSessionSettings(
+  id: string,
+  input: { model?: string; reasoningEffort?: string },
+): Promise<{ meta: SessionMeta }> {
+  return apiFetch<{ meta: SessionMeta }>(`/api/sessions/${id}/settings`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export function sendMessage(
   id: string,
   content: string,

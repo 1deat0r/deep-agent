@@ -5,12 +5,14 @@ import {
   deleteSession,
   eventsUrl,
   getConfig,
+  getModels,
   getSession,
   getSessions,
   interruptSession,
   runKernel,
   sendMessage,
   setGoal,
+  updateSessionSettings,
   getApprovals,
   decideApproval,
 } from './api';
@@ -46,6 +48,10 @@ function entryEq(a: TranscriptEntry, b: TranscriptEntry): boolean {
   if (a.kind === 'cell') {
     const cellB = b as Extract<TranscriptEntry, { kind: 'cell' }>;
     return a.timestamp === cellB.timestamp && a.code === cellB.code;
+  }
+  if (a.kind === 'compaction') {
+    const compB = b as Extract<TranscriptEntry, { kind: 'compaction' }>;
+    return a.from === compB.from && a.timestamp === compB.timestamp;
   }
   const msgA = a as TranscriptMessage;
   const msgB = b as TranscriptMessage;
@@ -142,7 +148,8 @@ type Tab = 'chat' | 'console';
 
 export function App(): JSX.Element {
   const [config, setConfig] = useState<AppConfig | null>(null);
-    const [sessions, setSessions] = useState<SessionMeta[]>([]);
+  const [models, setModels] = useState<string[]>([]);
+  const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [detail, setDetail] = useState<SessionDetail | null>(null);
@@ -207,10 +214,29 @@ export function App(): JSX.Element {
   const loadConfig = useCallback(async (): Promise<void> => {
     try {
       setConfig(await getConfig());
+      const modelsInfo = await getModels();
+      setModels(modelsInfo.models);
     } catch (err) {
       pushToast('error', err instanceof Error ? err.message : String(err));
     }
   }, [pushToast]);
+
+  const handleUpdateSettings = useCallback(
+    async (settings: { model?: string; reasoningEffort?: string }): Promise<void> => {
+      if (selectedId === null) return;
+      try {
+        const res = await updateSessionSettings(selectedId, settings);
+        setDetail((prev) => (prev ? { ...prev, meta: res.meta } : prev));
+        patchSessions(selectedId, {
+          model: res.meta.model,
+          ...(res.meta.reasoningEffort !== undefined ? { reasoningEffort: res.meta.reasoningEffort } : {}),
+        });
+      } catch (err) {
+        pushToast('error', err instanceof Error ? err.message : String(err));
+      }
+    },
+    [selectedId, patchSessions, pushToast],
+  );
 
   useEffect(() => {
     void loadConfig();
@@ -287,7 +313,7 @@ export function App(): JSX.Element {
       });
 
       addEvent(es, 'message_complete', (data) => {
-        const message: TranscriptMessage = { kind: 'message', ...data.message };
+        const message: TranscriptMessage = data.message;
         if (streamedRef.current) {
           setDetail((prev) => (prev ? applyMessage(prev, message) : prev));
           setDraft('');
@@ -527,9 +553,12 @@ export function App(): JSX.Element {
               transcript={detail.transcript}
               draft={draft}
               status={status}
+              meta={detail.meta}
+              models={models}
               onSend={(c) => void handleSend(c)}
               onInterrupt={() => void handleInterrupt()}
               onContinue={() => void handleContinue()}
+              onUpdateSettings={(settings) => void handleUpdateSettings(settings)}
             />
           ) : (
             <ConsoleView transcript={detail.transcript} onRun={handleRun} />

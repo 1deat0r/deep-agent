@@ -37,6 +37,7 @@ export interface SessionMeta {
   createdAt: string;
   updatedAt: string;
   childIds: string[];
+  reasoningEffort?: 'low' | 'medium' | 'high';
   goal: GoalState | null;
   autoContinue: boolean;
   /** Markdown summary of the latest completed turn, if any. */
@@ -58,7 +59,15 @@ export interface ChatMessage {
   tool_call_id?: string;
 }
 
-export type TranscriptMessage = ChatMessage & { kind: 'message' };
+/** Provider-reported token usage (mirrors host LlmUsage, all fields optional). */
+export interface UsageInfo {
+  promptTokens?: number;
+  completionTokens?: number;
+  cacheHitTokens?: number;
+  cacheMissTokens?: number;
+}
+
+export type TranscriptMessage = ChatMessage & { kind: 'message'; usage?: UsageInfo };
 
 export interface TranscriptCell {
   kind: 'cell';
@@ -71,16 +80,22 @@ export interface TranscriptCell {
   timestamp: string;
 }
 
-export type TranscriptEntry = TranscriptMessage | TranscriptCell;
+export interface TranscriptCompaction {
+  kind: 'compaction';
+  summary: string;
+  from: number;
+  timestamp: string;
+  usage?: UsageInfo;
+}
+
+export type TranscriptEntry = TranscriptMessage | TranscriptCell | TranscriptCompaction;
 
 export type HostEvent =
   | { type: 'status'; sessionId: string; status: SessionStatus }
   | { type: 'turn_start'; sessionId: string; turnId: string }
   | { type: 'turn_end'; sessionId: string; turnId: string; summary: string }
   | { type: 'message_delta'; sessionId: string; turnId: string; delta: string }
-  // NOTE: the backend emits a bare ChatMessage here (no `kind` field); the UI
-  // normalizes it into a TranscriptMessage when finalizing the transcript.
-  | { type: 'message_complete'; sessionId: string; message: ChatMessage }
+  | { type: 'message_complete'; sessionId: string; message: TranscriptMessage }
   | { type: 'cell_result'; sessionId: string; cell: TranscriptCell }
   | { type: 'child_spawned'; sessionId: string; child: ChildSummary }
   | { type: 'child_finished'; sessionId: string; childId: string; summary: string }
