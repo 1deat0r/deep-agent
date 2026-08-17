@@ -79,6 +79,6 @@ export class SessionStore {
   static messagesFrom(transcript: TranscriptEntry[]): ChatMessage[] {
     return transcript
       .filter((entry): entry is TranscriptEntry & { kind: 'message' } => entry.kind === 'message')
-      .map(({ kind: _kind, ...message }) => message);
+      .map(({ kind: _kind, usage: _usage, ...message }) => message);
   }
 }

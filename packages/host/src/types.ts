@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@deep-agent/provider';
+import type { ChatMessage, LlmUsage } from '@deep-agent/provider';
 
 export type SessionRole = 'root' | 'child';
 export type SessionStatus = 'idle' | 'running' | 'completed';
@@ -43,7 +43,7 @@ export interface SessionMeta {
 }
 
 export type TranscriptEntry =
-  | ({ kind: 'message' } & ChatMessage)
+  | ({ kind: 'message' } & ChatMessage & { usage?: LlmUsage })
   | {
       kind: 'cell';
       code: string;
@@ -60,6 +60,8 @@ export type TranscriptEntry =
       /** Transcript index of the first entry kept in the new context. */
       from: number;
       timestamp: string;
+      /** Provider-reported usage for the summarization call, when available. */
+      usage?: LlmUsage;
     }
   | TranscriptApprovalRequest
   | TranscriptApprovalDecision;

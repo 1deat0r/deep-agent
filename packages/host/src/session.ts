@@ -311,12 +311,22 @@ export class AgentSession {
         // a single long turn can outgrow the threshold mid-flight.
         await this.ensureCompacted(client);
         const context = this.buildTurnMessages();
-        const assistant = await this.runLlmCall(client, context, turnId, this.abort.signal);
-        this.append({ kind: 'message', ...assistant });
+        const { message: assistant, usage } = await this.runLlmCall(
+          client,
+          context,
+          turnId,
+          this.abort.signal,
+        );
+        const assistantEntry = {
+          kind: 'message' as const,
+          ...assistant,
+          ...(usage !== undefined ? { usage } : {}),
+        };
+        this.append(assistantEntry);
         this.deps.events.emit({
           type: 'message_complete',
           sessionId: this.id,
-          message: { kind: 'message', ...assistant },
+          message: assistantEntry,
         });
 
         const calls = assistant.tool_calls ?? [];
@@ -521,6 +531,7 @@ export class AgentSession {
       summary: summary.trim(),
       from,
       timestamp: new Date().toISOString(),
+      ...(usage !== undefined ? { usage } : {}),
     });
   }
 
@@ -562,7 +573,7 @@ export class AgentSession {
     messages: ChatMessage[],
     turnId: string,
     signal: AbortSignal,
-  ): Promise<ChatMessage> {
+  ): Promise<{ message: ChatMessage; usage: LlmUsage | undefined }> {
     let content = '';
     let usage: LlmUsage | undefined;
     const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
@@ -616,9 +627,12 @@ export class AgentSession {
     this.turnUsage.input += usage?.promptTokens ?? messagesTokens(messages);
     this.turnUsage.output += usage?.completionTokens ?? estimateTokens(content);
     return {
-      role: 'assistant',
-      content: content === '' ? null : content,
-      ...(calls.length > 0 ? { tool_calls: calls } : {}),
+      message: {
+        role: 'assistant',
+        content: content === '' ? null : content,
+        ...(calls.length > 0 ? { tool_calls: calls } : {}),
+      },
+      usage,
     };
   }
 
