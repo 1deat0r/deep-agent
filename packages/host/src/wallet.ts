@@ -42,13 +42,13 @@ interface SpendLine {
 }
 
 export class Wallet {
-  private readonly budgetUsd: number;
+  private readonly budgetLimitUsd: number;
   private readonly rates: WalletRates;
   private readonly path: string;
   private spent = 0;
 
   constructor(options: WalletOptions) {
-    this.budgetUsd = options.budgetUsd;
+    this.budgetLimitUsd = options.budgetUsd;
     this.rates = options.rates;
     this.path = options.path;
     this.spent = this.loadSpent();
@@ -74,8 +74,12 @@ export class Wallet {
     return this.spent;
   }
 
+  budgetUsd(): number {
+    return this.budgetLimitUsd;
+  }
+
   remainingUsd(): number {
-    return this.budgetUsd - this.spent;
+    return this.budgetLimitUsd - this.spent;
   }
 
   canRunTurn(): boolean {

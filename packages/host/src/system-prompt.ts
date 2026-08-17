@@ -57,6 +57,12 @@ delegated; never create one without that delegation.
 await rlm.goal.create("Build and paper-test the trading strategy", sovereign=True)
 \`\`\`
 
+Budget yourself: \`await rlm.wallet.status()\` reports remaining spend. Plan
+phases against it, and when a real-money action is needed, ask via
+\`rlm.approval.request(...)\` and wait for the decision. For choosing what to
+do next inside a goal, load the \`self-governance\` skill and follow its
+decision matrix.
+
 ## Style
 
 - Prefer one clear ipython call per step; batch simple operations.

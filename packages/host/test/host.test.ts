@@ -416,6 +416,15 @@ describe('approval gate', () => {
     const negative = await session.execConsole('await rlm.approval.request("x", amount_usd=-5)');
     expect(negative.error).toBeTruthy();
   });
+
+  it('rlm.wallet.status reports the budget', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'a' });
+    const result = await session.execConsole('await rlm.wallet.status()');
+    expect(result.error).toBeNull();
+    expect(result.resultRepr).toContain('budgetUsd');
+    expect(result.resultRepr).toContain('remainingUsd');
+  });
 });
 
 describe('models', () => {

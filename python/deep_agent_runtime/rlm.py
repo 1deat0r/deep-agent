@@ -105,6 +105,7 @@ class _Rlm:
         self.goal = _Goal(bridge)
         self.skills = _Skills(bridge)
         self.approval = _Approval(bridge)
+        self.wallet = _Wallet(bridge)
 
     def __call__(self, prompt: str, name: str | None = None) -> Awaitable[dict[str, Any]]:
         return _Awaitable(
@@ -257,6 +258,16 @@ class _Approval:
                 },
             )
         )
+
+
+class _Wallet:
+    """``rlm.wallet.status`` — the agent's budget: plan spend before running out."""
+
+    def __init__(self, bridge: _Bridge):
+        self._bridge = bridge
+
+    def status(self) -> Awaitable[dict[str, Any]]:
+        return _Awaitable(lambda: self._bridge.request("wallet_status"))
 
 
 class _AgentMessage:

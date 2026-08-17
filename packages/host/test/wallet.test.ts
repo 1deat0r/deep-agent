@@ -39,6 +39,7 @@ describe('Wallet', () => {
 
   it('starts at zero spent with the full budget remaining', () => {
     const wallet = new Wallet(walletArgs());
+    expect(wallet.budgetUsd()).toBe(5);
     expect(wallet.spentUsd()).toBe(0);
     expect(wallet.remainingUsd()).toBe(5);
     expect(wallet.canRunTurn()).toBe(true);

@@ -751,6 +751,12 @@ export class AgentSession {
         this.persistGoal();
         return this.meta.goal;
       }
+      case 'wallet_status':
+        return {
+          budgetUsd: this.deps.wallet.budgetUsd(),
+          spentUsd: this.deps.wallet.spentUsd(),
+          remainingUsd: this.deps.wallet.remainingUsd(),
+        };
       case 'approval_request': {
         const summary = String(payload.summary ?? '').trim();
         if (summary === '') throw new Error('approval_request requires a non-empty summary');

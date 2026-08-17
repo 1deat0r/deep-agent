@@ -88,6 +88,22 @@ instantly. Create them only for objectives the user has explicitly delegated:
 await rlm.goal.create("Build and paper-test the trading strategy", sovereign=True)
 ```
 
+## Wallet and approvals
+
+The host charges every model call against a budget (`wallet.budgetUsd` in
+config; spend persists to `<dataDir>/wallet.json`). The kernel can read it,
+and must ask the user before any real-money action:
+
+```python
+await rlm.wallet.status()              # {"budgetUsd": 5, "spentUsd": ..., "remainingUsd": ...}
+await rlm.approval.request("spend connects", detail="bid on a fixed-scope job", amount_usd=1.5)
+```
+
+An approval request flips an active goal to `waiting_approval` and is answered
+by the user through the GUI/API; the decision returns to the model as a
+message. For choosing what to do next, the `self-governance` skill carries the
+decision matrix.
+
 ## Skills
 
 A suite of instruction skills ships with the harness (vendored in the repo's
