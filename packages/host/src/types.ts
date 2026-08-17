@@ -5,7 +5,7 @@ export type SessionStatus = 'idle' | 'running' | 'completed';
 
 export interface GoalState {
   objective: string;
-  status: 'active' | 'completed' | 'blocked' | 'paused';
+  status: 'active' | 'completed' | 'blocked' | 'paused' | 'waiting_approval';
   rounds: number;
   maxRounds: number;
   /** Sovereign goals never pause on user messages and re-arm via heartbeat. */
@@ -60,7 +60,44 @@ export type TranscriptEntry =
       /** Transcript index of the first entry kept in the new context. */
       from: number;
       timestamp: string;
-    };
+    }
+  | TranscriptApprovalRequest
+  | TranscriptApprovalDecision;
+
+/** A real-money (or otherwise gated) action the model asked the user to approve. */
+export interface TranscriptApprovalRequest {
+  kind: 'approval_request';
+  id: string;
+  sessionId: string;
+  summary: string;
+  detail: string;
+  amountUsd?: number;
+  createdAt: string;
+}
+
+/** The user's decision on an approval request (append-only, pairs by id). */
+export interface TranscriptApprovalDecision {
+  kind: 'approval_decision';
+  id: string;
+  approved: boolean;
+  note: string;
+  decidedAt: string;
+}
+
+export type ApprovalStatus = 'pending' | 'approved' | 'denied';
+
+/** A real-money (or otherwise gated) action the model asked the user to approve. */
+export interface Approval {
+  id: string;
+  sessionId: string;
+  summary: string;
+  detail: string;
+  amountUsd: number | undefined;
+  status: ApprovalStatus;
+  note: string;
+  createdAt: string;
+  decidedAt: string | undefined;
+}
 
 export type HostEvent =
   | { type: 'status'; sessionId: string; status: SessionStatus }
@@ -83,6 +120,8 @@ export type HostEvent =
   | { type: 'goal_updated'; sessionId: string; goal: GoalState }
   | { type: 'session_deleted'; sessionId: string }
   | { type: 'kernel_restarted'; sessionId: string; reason: string }
+  | { type: 'approval_requested'; sessionId: string; approval: Approval }
+  | { type: 'approval_decided'; sessionId: string; approval: Approval }
   | { type: 'error'; sessionId: string; message: string };
 
 export interface SessionDetail {

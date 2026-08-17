@@ -86,6 +86,8 @@ export type HostEvent =
   | { type: 'child_finished'; sessionId: string; childId: string; summary: string }
   | { type: 'goal_updated'; sessionId: string; goal: GoalState }
   | { type: 'session_deleted'; sessionId: string }
+  | { type: 'approval_requested'; sessionId: string; approval: ApprovalInfo }
+  | { type: 'approval_decided'; sessionId: string; approval: ApprovalInfo }
   | { type: 'error'; sessionId: string; message: string };
 
 export interface SessionDetail {
@@ -133,6 +135,17 @@ export interface ExecResult {
 export interface SkillInfo {
   name: string;
   description: string;
+}
+
+/** A real-money (or otherwise gated) action awaiting the user's decision. */
+export interface ApprovalInfo {
+  id: string;
+  sessionId: string;
+  summary: string;
+  detail: string;
+  amountUsd?: number;
+  status: 'pending' | 'approved' | 'denied';
+  createdAt: string;
 }
 
 /** GET /api/models response. */

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getSkills } from '../api';
+import { getSkills, getWallet } from '../api';
 import {
   applyDesktopSettings,
   checkForDesktopUpdates,
@@ -31,6 +31,23 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
   const [skills, setSkills] = useState<SkillInfo[] | null>(null);
   const [skillsDir, setSkillsDir] = useState<string | null>(null);
   const [skillsError, setSkillsError] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<{
+    budgetUsd: number;
+    spentUsd: number;
+    remainingUsd: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getWallet()
+      .then((res) => {
+        if (!cancelled) setWallet(res);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [bridgeState, setBridgeState] = useState<DesktopSettingsState | null>(null);
   const [form, setForm] = useState<ProviderForm>({
     id: 'openai-compatible',
@@ -177,6 +194,14 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
                   <div className="info-row">
                     <dt>exec timeout (ms)</dt>
                     <dd>{config.execTimeoutMs === 0 ? '0 (disabled)' : config.execTimeoutMs}</dd>
+                  </div>
+                  <div className="info-row">
+                    <dt>wallet</dt>
+                    <dd>
+                      {wallet === null
+                        ? '—'
+                        : `$${wallet.remainingUsd.toFixed(2)} left of $${wallet.budgetUsd.toFixed(2)} ($${wallet.spentUsd.toFixed(2)} spent)`}
+                    </dd>
                   </div>
                 </dl>
               </section>

@@ -104,6 +104,7 @@ class _Rlm:
         self._bridge = bridge
         self.goal = _Goal(bridge)
         self.skills = _Skills(bridge)
+        self.approval = _Approval(bridge)
 
     def __call__(self, prompt: str, name: str | None = None) -> Awaitable[dict[str, Any]]:
         return _Awaitable(
@@ -230,6 +231,32 @@ class _Goal:
 
     def block(self, reason: str) -> Awaitable[dict[str, Any]]:
         return _Awaitable(lambda: self._bridge.request("goal_block", {"reason": reason}))
+
+
+class _Approval:
+    """``rlm.approval.request`` — ask the user to approve a real-money action."""
+
+    def __init__(self, bridge: _Bridge):
+        self._bridge = bridge
+
+    def request(
+        self,
+        summary: str,
+        detail: str = "",
+        amount_usd: float | None = None,
+        id: str | None = None,
+    ) -> Awaitable[dict[str, Any]]:
+        return _Awaitable(
+            lambda: self._bridge.request(
+                "approval_request",
+                {
+                    "summary": summary,
+                    "detail": detail,
+                    **({"amount_usd": amount_usd} if amount_usd is not None else {}),
+                    **({"id": id} if id else {}),
+                },
+            )
+        )
 
 
 class _AgentMessage:

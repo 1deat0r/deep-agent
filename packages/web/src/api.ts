@@ -6,6 +6,7 @@ import type {
   SessionDetail,
   SessionMeta,
   SkillInfo,
+  ApprovalInfo,
 } from './types';
 
 /**
@@ -52,6 +53,31 @@ export function getModels(): Promise<ModelsResponse> {
 
 export function getSkills(): Promise<{ dir: string; skills: SkillInfo[] }> {
   return apiFetch<{ dir: string; skills: SkillInfo[] }>('/api/skills');
+}
+
+export function getApprovals(): Promise<{ approvals: ApprovalInfo[] }> {
+  return apiFetch<{ approvals: ApprovalInfo[] }>('/api/approvals');
+}
+
+export function decideApproval(
+  id: string,
+  approve: boolean,
+  note = '',
+): Promise<{ approval: ApprovalInfo }> {
+  return apiFetch<{ approval: ApprovalInfo }>(`/api/approvals/${id}`, {
+    method: 'POST',
+    body: JSON.stringify({ approve, note }),
+  });
+}
+
+export function getWallet(): Promise<{
+  budgetUsd: number;
+  spentUsd: number;
+  remainingUsd: number;
+}> {
+  return apiFetch<{ budgetUsd: number; spentUsd: number; remainingUsd: number }>(
+    '/api/wallet',
+  );
 }
 
 export function getSessions(): Promise<{ sessions: SessionMeta[] }> {

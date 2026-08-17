@@ -12,9 +12,12 @@ import {
   runKernel,
   sendMessage,
   setGoal,
+  getApprovals,
+  decideApproval,
 } from './api';
 import type {
   AppConfig,
+  ApprovalInfo,
   ChildSummary,
   HostEvent,
   SessionDetail,
@@ -155,6 +158,7 @@ export function App(): JSX.Element {
   const [rightOpen, setRightOpen] = useState(true);
   const [tab, setTab] = useState<Tab>('chat');
   const [refreshing, setRefreshing] = useState(false);
+  const [approvals, setApprovals] = useState<ApprovalInfo[]>([]);
 
   const pushToast = useCallback((kind: ToastKind, message: string) => {
     const id = ++toastId.current;
@@ -167,6 +171,24 @@ export function App(): JSX.Element {
   const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const loadApprovals = useCallback(() => {
+    getApprovals()
+      .then((res) => setApprovals(res.approvals))
+      .catch(() => undefined);
+  }, []);
+
+  const decide = useCallback(
+    async (id: string, approve: boolean): Promise<void> => {
+      try {
+        await decideApproval(id, approve);
+        loadApprovals();
+      } catch (error) {
+        pushToast('error', error instanceof Error ? error.message : String(error));
+      }
+    },
+    [loadApprovals, pushToast],
+  );
 
   const patchSessions = useCallback((id: string, patch: Partial<SessionMeta>) => {
     setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -197,7 +219,8 @@ export function App(): JSX.Element {
   useEffect(() => {
     void loadConfig();
     void loadSessions();
-  }, [loadConfig, loadSessions]);
+    loadApprovals();
+  }, [loadConfig, loadSessions, loadApprovals]);
 
   // Desktop shell: first run with no config / no API key opens Settings so the
   // user lands in the provider form before anything else (ticket 04).
@@ -298,6 +321,14 @@ export function App(): JSX.Element {
           prev ? { ...prev, meta: { ...prev.meta, goal: data.goal, autoContinue: true } } : prev,
         );
         patchSessions(data.sessionId, { goal: data.goal, autoContinue: true });
+      });
+
+      addEvent(es, 'approval_requested', () => {
+        loadApprovals();
+      });
+
+      addEvent(es, 'approval_decided', () => {
+        loadApprovals();
       });
 
       addEvent(es, 'turn_end', () => {
@@ -524,6 +555,38 @@ export function App(): JSX.Element {
       )}
 
       {settingsOpen && <SettingsModal config={config} onClose={() => setSettingsOpen(false)} />}
+
+      {approvals.length > 0 && (
+        <div className="approvals-panel" role="region" aria-label="Pending approvals">
+          {approvals.map((approval) => (
+            <div className="approval-card" key={approval.id}>
+              <div className="approval-card__head">
+                <strong>{approval.summary}</strong>
+                {approval.amountUsd !== undefined && <span>${approval.amountUsd.toFixed(2)}</span>}
+              </div>
+              {approval.detail !== '' && (
+                <p className="approval-card__detail">{approval.detail}</p>
+              )}
+              <div className="approval-card__actions">
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => void decide(approval.id, true)}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => void decide(approval.id, false)}
+                >
+                  Deny
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Toasts toasts={toasts} onDismiss={dismissToast} />
     </div>

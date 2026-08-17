@@ -364,6 +364,60 @@ describe('goals and autonomous continuation', () => {
   });
 });
 
+describe('approval gate', () => {
+  it('an approval request pauses the goal and a decision resumes it', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'a', goal: 'ship it' });
+    rootScripts.push(textTurn('approval wake answer'), textTurn('extra continuation'));
+    await session.execConsole(
+      'await rlm.approval.request("spend connects", detail="bid on a fixed-scope job", amount_usd=1.5)',
+    );
+    expect(session.meta.goal?.status).toBe('waiting_approval');
+    expect(session.transcript.some((e) => e.kind === 'approval_request')).toBe(true);
+
+    const approval = host.manager.approvals.pending().find((a) => a.sessionId === session.id);
+    expect(approval?.summary).toBe('spend connects');
+    expect(approval?.amountUsd).toBe(1.5);
+
+    host.manager.decideApproval(approval!.id, true, 'go');
+    await waitFor(() => session.meta.goal?.status === 'active', 5000);
+    expect(
+      session.transcript.some((e) => e.kind === 'approval_decision' && e.approved),
+    ).toBe(true);
+    // the verdict wakes the model as a system message
+    await waitFor(
+      () =>
+        session.transcript.some(
+          (e) =>
+            e.kind === 'message' && e.name === 'system' && e.content.includes('approved'),
+        ),
+      5000,
+    );
+  });
+
+  it('a denied approval resumes the goal with the denial recorded', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'a', goal: 'ship it' });
+    rootScripts.push(textTurn('denial answer'), textTurn('extra continuation'));
+    await session.execConsole('await rlm.approval.request("transfer funds")');
+    const approval = host.manager.approvals.pending().find((a) => a.sessionId === session.id);
+    host.manager.decideApproval(approval!.id, false, 'too risky');
+    await waitFor(() => session.meta.goal?.status === 'active', 5000);
+    expect(
+      session.transcript.some((e) => e.kind === 'approval_decision' && !e.approved),
+    ).toBe(true);
+  });
+
+  it('invalid approval requests are rejected', async () => {
+    const host = makeHost();
+    const session = await host.manager.createSession({ title: 'a' });
+    const empty = await session.execConsole('await rlm.approval.request("")');
+    expect(empty.error).toBeTruthy();
+    const negative = await session.execConsole('await rlm.approval.request("x", amount_usd=-5)');
+    expect(negative.error).toBeTruthy();
+  });
+});
+
 describe('models', () => {
   it('sessions carry their model, children inherit it, and the API lists models', async () => {
     const host = makeHost();

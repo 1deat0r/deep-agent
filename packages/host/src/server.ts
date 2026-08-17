@@ -7,6 +7,7 @@ import { AgentManager } from './manager.js';
 import { ssePayload } from './events.js';
 import type { HostConfig, ModelsResponse } from './types.js';
 import { Wallet } from './wallet.js';
+import { ApprovalError, ApprovalRegistry } from './approvals.js';
 
 const VERSION = '0.1.0';
 
@@ -80,12 +81,14 @@ export interface ServerOptions {
   manager: AgentManager;
   webDir?: string;
   wallet?: Wallet;
+  approvals?: ApprovalRegistry;
 }
 
 export class HostServer {
   readonly config: HostConfig;
   private readonly manager: AgentManager;
   private readonly wallet: Wallet;
+  private readonly approvals: ApprovalRegistry;
   private readonly webDir: string;
   private server: Server | null = null;
 
@@ -99,6 +102,7 @@ export class HostServer {
         rates: this.config.wallet.rates,
         path: join(this.config.dataDir, 'wallet.json'),
       });
+    this.approvals = options.approvals ?? new ApprovalRegistry();
     this.webDir = options.webDir ?? process.env.DEEP_AGENT_WEB_DIR ?? defaultWebDir();
   }
 
@@ -199,6 +203,35 @@ export class HostServer {
         remainingUsd: this.wallet.remainingUsd(),
         rates: this.config.wallet.rates,
       });
+      return;
+    }
+
+    if (pathname === '/api/approvals' && req.method === 'GET') {
+      sendJson(res, 200, { approvals: this.approvals.pending() });
+      return;
+    }
+    const approvalMatch = pathname.match(/^\/api\/approvals\/([0-9a-zA-Z-]+)$/);
+    if (approvalMatch && req.method === 'POST') {
+      const body = await readJson(req);
+      const approved = body.approve === true;
+      if (body.approve !== true && body.approve !== false) {
+        sendJson(res, 400, { error: 'approve must be a boolean' });
+        return;
+      }
+      try {
+        const approval = this.manager.decideApproval(
+          approvalMatch[1] ?? '',
+          approved,
+          typeof body.note === 'string' ? body.note : '',
+        );
+        sendJson(res, 200, { approval });
+      } catch (error) {
+        if (error instanceof ApprovalError) {
+          sendJson(res, 404, { error: error.message });
+        } else {
+          sendJson(res, 500, { error: (error as Error).message });
+        }
+      }
       return;
     }
 

@@ -3,7 +3,8 @@ import { EventBus } from './events.js';
 import { AgentSession, type SessionDeps, type SessionHost } from './session.js';
 import { SkillsRegistry } from './skills.js';
 import { SessionStore } from './store.js';
-import type { ChildSummary, HostConfig, SessionMeta } from './types.js';
+import type { Approval, ChildSummary, HostConfig, SessionMeta } from './types.js';
+import { ApprovalRegistry } from './approvals.js';
 import { Wallet } from './wallet.js';
 
 /**
@@ -22,6 +23,7 @@ export class AgentManager {
     readonly skills: SkillsRegistry,
     readonly createClient: SessionDeps['createClient'],
     readonly wallet: Wallet,
+    readonly approvals: ApprovalRegistry,
   ) {
     this.hostBridge = {
       spawnChild: (parent, prompt, name) => this.spawnChild(parent, prompt, name),
@@ -40,7 +42,17 @@ export class AgentManager {
       createClient: this.createClient,
       host: this.hostBridge,
       wallet: this.wallet,
+      approvals: this.approvals,
     };
+  }
+
+  /** Decide a pending approval and wake its session with the verdict (ticket 04). */
+  decideApproval(id: string, approved: boolean, note = ''): Approval {
+    const approval = this.approvals.decide(id, { approved, note });
+    const session = this.sessions.get(approval.sessionId);
+    if (!session) throw new Error(`session ${approval.sessionId} not loaded`);
+    session.applyApprovalDecision(approval, { approved, note });
+    return approval;
   }
 
   async createSession(options: {

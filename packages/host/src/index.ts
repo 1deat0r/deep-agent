@@ -8,6 +8,7 @@ import { HostServer } from './server.js';
 import { SessionStore } from './store.js';
 import { defaultBundledSkillsDir, SkillsRegistry } from './skills.js';
 import { Wallet } from './wallet.js';
+import { ApprovalRegistry } from './approvals.js';
 import { join } from 'node:path';
 
 export interface Host {
@@ -17,6 +18,7 @@ export interface Host {
   events: EventBus;
   skills: SkillsRegistry;
   wallet: Wallet;
+  approvals: ApprovalRegistry;
 }
 
 export function buildClient(config: Host['config'], model?: string): LlmClient {
@@ -73,13 +75,15 @@ export function createHost(
     rates: config.wallet.rates,
     path: join(config.dataDir, 'wallet.json'),
   });
+  const approvals = new ApprovalRegistry();
   const manager = new AgentManager(store, events, config, skills, (ctx) =>
     clientFactory ? clientFactory(config, ctx) : buildClient(config, ctx.model),
     wallet,
+    approvals,
   );
   manager.loadAll();
-  const server = new HostServer({ config, manager, wallet });
-  return { config, manager, server, events, skills, wallet };
+  const server = new HostServer({ config, manager, wallet, approvals });
+  return { config, manager, server, events, skills, wallet, approvals };
 }
 
 export * from './types.js';
@@ -104,3 +108,5 @@ export type { SkillContent, SkillInfo } from './skills.js';
 export { estimateTokens } from './tokens.js';
 export { Wallet, WalletError, costUsd, validateWallet } from './wallet.js';
 export type { WalletRates, WalletCharge } from './wallet.js';
+export { ApprovalRegistry, ApprovalError, derivePending } from './approvals.js';
+export type { ApprovalRequestInput, ApprovalDecision } from './approvals.js';

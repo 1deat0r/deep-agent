@@ -23,6 +23,8 @@ import { SkillsRegistry } from './skills.js';
 import { SessionStore } from './store.js';
 import { systemPrompt } from './system-prompt.js';
 import { Wallet } from './wallet.js';
+import { ApprovalRegistry, derivePending } from './approvals.js';
+import type { Approval } from './types.js';
 
 export interface SessionDeps {
   store: SessionStore;
@@ -34,6 +36,8 @@ export interface SessionDeps {
   host: SessionHost;
   /** Host-global cost accounting (sovereign-agent ticket 03). */
   wallet: Wallet;
+  /** Host-global real-money approval gate (sovereign-agent ticket 04). */
+  approvals: ApprovalRegistry;
 }
 
 /** Capabilities the session delegates upward to the manager. */
@@ -123,6 +127,17 @@ export class AgentSession {
     this.meta = meta;
     this.transcript = transcript;
     this.deps = deps;
+    // Rebuild pending approvals from the transcript (ticket 04): requests
+    // without a matching decision are still waiting after a restart.
+    for (const approval of derivePending(this.id, transcript)) {
+      deps.approvals.register({
+        id: approval.id,
+        sessionId: approval.sessionId,
+        summary: approval.summary,
+        detail: approval.detail,
+        ...(approval.amountUsd !== undefined ? { amountUsd: approval.amountUsd } : {}),
+      });
+    }
   }
 
   static async create(
@@ -736,9 +751,77 @@ export class AgentSession {
         this.persistGoal();
         return this.meta.goal;
       }
+      case 'approval_request': {
+        const summary = String(payload.summary ?? '').trim();
+        if (summary === '') throw new Error('approval_request requires a non-empty summary');
+        const amountUsd =
+          payload.amount_usd === undefined || payload.amount_usd === null
+            ? undefined
+            : Number(payload.amount_usd);
+        if (amountUsd !== undefined && (!Number.isFinite(amountUsd) || amountUsd < 0)) {
+          throw new Error('approval_request amount_usd must be a non-negative number');
+        }
+        const approval = this.deps.approvals.register({
+          ...(typeof payload.id === 'string' && payload.id !== '' ? { id: payload.id } : {}),
+          sessionId: this.id,
+          summary,
+          detail: String(payload.detail ?? ''),
+          ...(amountUsd !== undefined ? { amountUsd } : {}),
+        });
+        this.append({
+          kind: 'approval_request',
+          id: approval.id,
+          sessionId: this.id,
+          summary: approval.summary,
+          detail: approval.detail,
+          ...(approval.amountUsd !== undefined ? { amountUsd: approval.amountUsd } : {}),
+          createdAt: approval.createdAt,
+        });
+        if (this.meta.goal && this.meta.goal.status === 'active') {
+          this.meta.goal.status = 'waiting_approval';
+          this.meta.goal.updatedAt = new Date().toISOString();
+          this.persistGoal();
+          this.deps.events.emit({ type: 'goal_updated', sessionId: this.id, goal: this.meta.goal });
+        }
+        this.deps.events.emit({ type: 'approval_requested', sessionId: this.id, approval });
+        return approval;
+      }
       default:
         throw new Error(`unknown host request kind: ${String(payload.kind)}`);
     }
+  }
+
+  /**
+   * Apply the user's decision to an approval (ticket 04): record it in the
+   * transcript, resume a waiting goal, and wake the model with the verdict.
+   */
+  applyApprovalDecision(approval: Approval, decision: { approved: boolean; note: string }): void {
+    this.append({
+      kind: 'approval_decision',
+      id: approval.id,
+      approved: decision.approved,
+      note: decision.note,
+      decidedAt: approval.decidedAt ?? new Date().toISOString(),
+    });
+    if (this.meta.goal && this.meta.goal.status === 'waiting_approval') {
+      this.meta.goal.status = 'active';
+      this.meta.goal.updatedAt = new Date().toISOString();
+      this.persistGoal();
+      this.deps.events.emit({ type: 'goal_updated', sessionId: this.id, goal: this.meta.goal });
+    }
+    this.deps.events.emit({ type: 'approval_decided', sessionId: this.id, approval });
+    const verdict = decision.approved ? 'approved' : 'denied';
+    const note = decision.note !== '' ? ` (${decision.note})` : '';
+    void this.runTurn({
+      content: `Approval "${approval.summary}" was ${verdict}${note}. Act on the decision.`,
+      name: 'system',
+    }).catch((error) => {
+      this.deps.events.emit({
+        type: 'error',
+        sessionId: this.id,
+        message: `approval wake failed: ${(error as Error).message}`,
+      });
+    });
   }
 
   private persistGoal(): void {
