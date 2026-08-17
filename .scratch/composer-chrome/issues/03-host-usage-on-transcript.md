@@ -1,6 +1,6 @@
 # 03: Host usage on transcript entries
 
-Status: in-progress
+Status: resolved
 
 Assistant message entries (and compaction entries) carry optional `usage` with
 the normalized cache fields; `message_complete` events carry it too.

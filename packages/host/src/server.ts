@@ -304,6 +304,32 @@ export class HostServer {
       return;
     }
 
+    if (rest === '/settings' && req.method === 'POST') {
+      if (!session) {
+        sendJson(res, 404, { error: 'session not found' });
+        return;
+      }
+      const body = await readJson(req);
+      const model =
+        typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined;
+      if (body.model !== undefined && model === undefined) {
+        sendJson(res, 400, { error: 'model must be a non-empty string' });
+        return;
+      }
+      const effortValues = ['low', 'medium', 'high', 'auto'];
+      const reasoningEffort =
+        typeof body.reasoningEffort === 'string' && effortValues.includes(body.reasoningEffort)
+          ? (body.reasoningEffort as 'low' | 'medium' | 'high' | 'auto')
+          : undefined;
+      if (body.reasoningEffort !== undefined && reasoningEffort === undefined) {
+        sendJson(res, 400, { error: 'reasoningEffort must be low, medium, high, or auto' });
+        return;
+      }
+      session.setSettings({ model, reasoningEffort });
+      sendJson(res, 200, { meta: session.meta });
+      return;
+    }
+
     if (rest === '/messages' && req.method === 'POST') {
       const body = await readJson(req);
       const content = typeof body.content === 'string' ? body.content : '';

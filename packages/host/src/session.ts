@@ -495,7 +495,11 @@ export class AgentSession {
     ];
     let usage: LlmUsage | undefined;
     try {
-      for await (const chunk of client.streamChat(compactionMessages)) {
+      for await (const chunk of client.streamChat(compactionMessages, undefined, {
+        ...(this.meta.reasoningEffort !== undefined
+          ? { reasoningEffort: this.meta.reasoningEffort }
+          : {}),
+      })) {
         if (chunk.type === 'delta') summary += chunk.content;
         if (chunk.type === 'error') throw new Error(chunk.message);
         if (chunk.type === 'done') {
@@ -566,6 +570,25 @@ export class AgentSession {
     ];
   }
 
+  /**
+   * Update per-session model/reasoning settings. Persists via meta.json; the
+   * next turn's client factory reads the new model.
+   */
+  setSettings(settings: {
+    model: string | undefined;
+    reasoningEffort: 'low' | 'medium' | 'high' | 'auto' | undefined;
+  }): void {
+    if (settings.model !== undefined) this.meta.model = settings.model;
+    if (settings.reasoningEffort !== undefined) {
+      if (settings.reasoningEffort === 'auto') {
+        delete this.meta.reasoningEffort;
+      } else {
+        this.meta.reasoningEffort = settings.reasoningEffort;
+      }
+    }
+    this.touch();
+  }
+
   // -- LLM call ------------------------------------------------------------
 
   private async runLlmCall(
@@ -580,7 +603,12 @@ export class AgentSession {
     for await (const chunk of client.streamChat(
       messages,
       [IPYTHON_TOOL],
-      { signal },
+      {
+        signal,
+        ...(this.meta.reasoningEffort !== undefined
+          ? { reasoningEffort: this.meta.reasoningEffort }
+          : {}),
+      },
     )) {
       switch (chunk.type) {
         case 'delta':
