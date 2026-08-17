@@ -315,6 +315,43 @@ describe('goals and autonomous continuation', () => {
     expect(systemMessages).toHaveLength(0);
   });
 
+  it('a sovereign goal never pauses on a user message', async () => {
+    const host = makeHost({ maxAutoRounds: 5 });
+    const session = await host.manager.createSession({ title: 'sovereign', goal: 'ship it' });
+    await session.execConsole('await rlm.goal.create("ship it faster", sovereign=True)');
+    expect(session.meta.goal?.sovereign).toBe(true);
+
+    rootScripts.push(textTurn('work done'), textTurn('user answered'), textTurn('extra round'));
+    await session.runTurn({ content: 'start' });
+    await session.runTurn({ content: 'user says hi' });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(session.meta.goal?.status).toBe('active');
+    expect(session.meta.autoContinue).toBe(true);
+  });
+
+  it('a sovereign goal re-arms after its round cap via the heartbeat', async () => {
+    const host = makeHost({ maxAutoRounds: 2, heartbeatMs: 100 });
+    const session = await host.manager.createSession({ title: 'sovereign', goal: 'ship it' });
+    await session.execConsole('await rlm.goal.create("ship it faster", sovereign=True)');
+
+    rootScripts.push(
+      textTurn('r1'),
+      textTurn('r2'),
+      textTurn('heartbeat round'),
+      textTurn('extra'),
+    );
+    await session.runTurn({ content: 'start' });
+    await waitFor(
+      () =>
+        session.transcript.some(
+          (entry) => entry.kind === 'message' && entry.content.includes('Heartbeat'),
+        ),
+      20000,
+    );
+    expect(session.meta.goal?.status).toBe('active');
+    expect(session.meta.goal?.blockedReason).toBeUndefined();
+  });
+
   it('goal create/complete via kernel host requests', async () => {
     const host = makeHost();
     const session = await host.manager.createSession({ title: 'g' });

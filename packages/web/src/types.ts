@@ -10,6 +10,7 @@ export interface GoalState {
   status: GoalStatus;
   rounds: number;
   maxRounds: number;
+  sovereign: boolean;
   summary?: string;
   blockedReason?: string;
   updatedAt: string;

@@ -213,8 +213,12 @@ class _Goal:
     def __init__(self, bridge: _Bridge):
         self._bridge = bridge
 
-    def create(self, objective: str) -> Awaitable[dict[str, Any]]:
-        return _Awaitable(lambda: self._bridge.request("goal_create", {"objective": objective}))
+    def create(self, objective: str, sovereign: bool = False) -> Awaitable[dict[str, Any]]:
+        return _Awaitable(
+            lambda: self._bridge.request(
+                "goal_create", {"objective": objective, "sovereign": sovereign}
+            )
+        )
 
     def status(self) -> Awaitable[dict[str, Any]]:
         return _Awaitable(lambda: self._bridge.request("goal_status"))

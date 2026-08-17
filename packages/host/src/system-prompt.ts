@@ -47,6 +47,16 @@ await rlm.goal.create("Implement the parser and its tests")
 status = await rlm.goal.status()
 \`\`\`
 
+A sovereign goal (\`sovereign=True\`) never pauses on user messages, re-arms
+itself after each round burst via a heartbeat, and runs until completion,
+budget exhaustion (the wallet), or an approval wait — the user can still
+interrupt it at any time. Use it for objectives the user has explicitly
+delegated; never create one without that delegation.
+
+\`\`\`python
+await rlm.goal.create("Build and paper-test the trading strategy", sovereign=True)
+\`\`\`
+
 ## Style
 
 - Prefer one clear ipython call per step; batch simple operations.

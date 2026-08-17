@@ -87,12 +87,13 @@ function formatToolResult(result: ExecResult): string {
     : text;
 }
 
-function newGoal(objective: string, maxRounds: number): GoalState {
+function newGoal(objective: string, maxRounds: number, sovereign = false): GoalState {
   return {
     objective,
     status: 'active',
     rounds: 0,
     maxRounds,
+    sovereign,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -215,8 +216,8 @@ export class AgentSession {
     if (this.disposed) return { ok: false, summary: '', error: 'session disposed' };
     // A direct user message (no name) while a goal continuation is pending
     // pauses the autonomous loop after this turn; child replies and system
-    // continuations do not pause it.
-    if (input.name === undefined && this.continuationTimer) {
+    // continuations do not pause it. Sovereign goals never pause (ticket 02).
+    if (input.name === undefined && this.continuationTimer && this.meta.goal?.sovereign !== true) {
       clearTimeout(this.continuationTimer);
       this.continuationTimer = null;
       this.continuationScheduled = false;
@@ -336,6 +337,33 @@ export class AgentSession {
     if (!goal || !this.meta.autoContinue || this.continuationScheduled || this.disposed) return;
     if (goal.status !== 'active') return;
     if (goal.rounds >= goal.maxRounds) {
+      if (goal.sovereign) {
+        // Sovereign: the round cap ends the burst, not the goal — a heartbeat
+        // after the idle interval starts the next burst (ticket 02).
+        this.continuationScheduled = true;
+        this.continuationTimer = setTimeout(() => {
+          this.continuationScheduled = false;
+          this.continuationTimer = null;
+          if (this.disposed || this.meta.goal?.status !== 'active' || !this.meta.autoContinue) return;
+          if (this.meta.goal) {
+            this.meta.goal.rounds = 0;
+            this.persistGoal();
+          }
+          void this.runTurn({
+            content:
+              'Heartbeat: continue working toward the objective. Inspect current state, do the next increment of work, then report progress.',
+            name: 'system',
+            goalRound: true,
+          }).catch((error) => {
+            this.deps.events.emit({
+              type: 'error',
+              sessionId: this.id,
+              message: `heartbeat failed: ${(error as Error).message}`,
+            });
+          });
+        }, this.deps.config.heartbeatMs);
+        return;
+      }
       goal.status = 'blocked';
       goal.blockedReason = `round limit reached (${goal.maxRounds})`;
       goal.updatedAt = new Date().toISOString();
@@ -682,7 +710,11 @@ export class AgentSession {
       case 'goal_create': {
         const objective = String(payload.objective ?? '').trim();
         if (objective === '') throw new Error('goal_create requires a non-empty objective');
-        this.meta.goal = newGoal(objective, this.deps.config.maxAutoRounds);
+        this.meta.goal = newGoal(
+          objective,
+          this.deps.config.maxAutoRounds,
+          payload.sovereign === true,
+        );
         this.persistGoal();
         return this.meta.goal;
       }

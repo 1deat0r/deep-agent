@@ -8,6 +8,8 @@ export interface GoalState {
   status: 'active' | 'completed' | 'blocked' | 'paused';
   rounds: number;
   maxRounds: number;
+  /** Sovereign goals never pause on user messages and re-arm via heartbeat. */
+  sovereign: boolean;
   summary?: string;
   blockedReason?: string;
   updatedAt: string;
@@ -107,6 +109,8 @@ export interface HostConfig {
   maxDepth: number;
   maxToolIterations: number;
   maxAutoRounds: number;
+  /** Sovereign-goal idle re-entry interval in ms (ticket 02). */
+  heartbeatMs: number;
   execTimeoutMs: number;
   /** Respawn an unexpectedly-exited kernel this many times per session. */
   maxKernelRestarts: number;

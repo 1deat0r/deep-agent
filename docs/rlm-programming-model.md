@@ -78,6 +78,16 @@ await rlm.goal.block("waiting on the upstream API")
 
 A blocked goal stops auto-continuation; the human (or a later turn) re-arms it.
 
+**Sovereign goals** (`sovereign=True`) never pause on user messages, re-arm
+after each round burst via a heartbeat (`heartbeatMs`, default 5 min), and run
+until completion, wallet-budget exhaustion (`blocked` with reason
+`budget exhausted`), or an approval wait — interrupt always stops them
+instantly. Create them only for objectives the user has explicitly delegated:
+
+```python
+await rlm.goal.create("Build and paper-test the trading strategy", sovereign=True)
+```
+
 ## Skills
 
 A suite of instruction skills ships with the harness (vendored in the repo's

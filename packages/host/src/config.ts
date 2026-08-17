@@ -11,6 +11,7 @@ export const DEFAULT_CONFIG: HostConfig = {
   maxDepth: 3,
   maxToolIterations: 60,
   maxAutoRounds: 10,
+  heartbeatMs: 300_000,
   execTimeoutMs: 0,
   maxKernelRestarts: 3,
   compactAtTokens: 24_000,

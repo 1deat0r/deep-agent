@@ -331,6 +331,7 @@ export class HostServer {
         status: 'active',
         rounds: 0,
         maxRounds: this.config.maxAutoRounds,
+        sovereign: false,
         updatedAt: new Date().toISOString(),
       };
       session.meta.autoContinue = true;
