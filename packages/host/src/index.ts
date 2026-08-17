@@ -7,6 +7,7 @@ import { AgentManager } from './manager.js';
 import { HostServer } from './server.js';
 import { SessionStore } from './store.js';
 import { defaultBundledSkillsDir, SkillsRegistry } from './skills.js';
+import { Wallet } from './wallet.js';
 import { join } from 'node:path';
 
 export interface Host {
@@ -15,6 +16,7 @@ export interface Host {
   server: HostServer;
   events: EventBus;
   skills: SkillsRegistry;
+  wallet: Wallet;
 }
 
 export function buildClient(config: Host['config'], model?: string): LlmClient {
@@ -66,12 +68,18 @@ export function createHost(
   if (seeded.length > 0) {
     console.log(`[deep-agent] seeded ${seeded.length} bundled skills into ${skills.dir}`);
   }
+  const wallet = new Wallet({
+    budgetUsd: config.wallet.budgetUsd,
+    rates: config.wallet.rates,
+    path: join(config.dataDir, 'wallet.json'),
+  });
   const manager = new AgentManager(store, events, config, skills, (ctx) =>
     clientFactory ? clientFactory(config, ctx) : buildClient(config, ctx.model),
+    wallet,
   );
   manager.loadAll();
-  const server = new HostServer({ config, manager });
-  return { config, manager, server, events, skills };
+  const server = new HostServer({ config, manager, wallet });
+  return { config, manager, server, events, skills, wallet };
 }
 
 export * from './types.js';
@@ -94,3 +102,5 @@ export { EchoLlmClient } from './mock-client.js';
 export { defaultBundledSkillsDir, SkillsRegistry } from './skills.js';
 export type { SkillContent, SkillInfo } from './skills.js';
 export { estimateTokens } from './tokens.js';
+export { Wallet, WalletError, costUsd, validateWallet } from './wallet.js';
+export type { WalletRates, WalletCharge } from './wallet.js';

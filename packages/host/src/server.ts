@@ -6,6 +6,7 @@ import { dirname } from 'node:path';
 import { AgentManager } from './manager.js';
 import { ssePayload } from './events.js';
 import type { HostConfig, ModelsResponse } from './types.js';
+import { Wallet } from './wallet.js';
 
 const VERSION = '0.1.0';
 
@@ -78,17 +79,26 @@ export interface ServerOptions {
   config: HostConfig;
   manager: AgentManager;
   webDir?: string;
+  wallet?: Wallet;
 }
 
 export class HostServer {
   readonly config: HostConfig;
   private readonly manager: AgentManager;
+  private readonly wallet: Wallet;
   private readonly webDir: string;
   private server: Server | null = null;
 
   constructor(options: ServerOptions) {
     this.config = options.config;
     this.manager = options.manager;
+    this.wallet =
+      options.wallet ??
+      new Wallet({
+        budgetUsd: this.config.wallet.budgetUsd,
+        rates: this.config.wallet.rates,
+        path: join(this.config.dataDir, 'wallet.json'),
+      });
     this.webDir = options.webDir ?? process.env.DEEP_AGENT_WEB_DIR ?? defaultWebDir();
   }
 
@@ -178,6 +188,16 @@ export class HostServer {
           maxTokens: provider.maxTokens,
           hasApiKey: Boolean(provider.apiKey),
         },
+      });
+      return;
+    }
+
+    if (pathname === '/api/wallet') {
+      sendJson(res, 200, {
+        budgetUsd: this.config.wallet.budgetUsd,
+        spentUsd: this.wallet.spentUsd(),
+        remainingUsd: this.wallet.remainingUsd(),
+        rates: this.config.wallet.rates,
       });
       return;
     }

@@ -4,6 +4,7 @@ import { AgentSession, type SessionDeps, type SessionHost } from './session.js';
 import { SkillsRegistry } from './skills.js';
 import { SessionStore } from './store.js';
 import type { ChildSummary, HostConfig, SessionMeta } from './types.js';
+import { Wallet } from './wallet.js';
 
 /**
  * Owns every session in the process: creation, resume, child spawning with
@@ -20,6 +21,7 @@ export class AgentManager {
     readonly config: HostConfig,
     readonly skills: SkillsRegistry,
     readonly createClient: SessionDeps['createClient'],
+    readonly wallet: Wallet,
   ) {
     this.hostBridge = {
       spawnChild: (parent, prompt, name) => this.spawnChild(parent, prompt, name),
@@ -37,6 +39,7 @@ export class AgentManager {
       skills: this.skills,
       createClient: this.createClient,
       host: this.hostBridge,
+      wallet: this.wallet,
     };
   }
 

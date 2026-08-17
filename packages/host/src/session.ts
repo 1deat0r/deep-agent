@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { isAbsolute, join } from 'node:path';
-import type { ChatMessage, LlmClient, ToolCall } from '@deep-agent/provider';
+import type { ChatMessage, LlmClient, LlmUsage, ToolCall } from '@deep-agent/provider';
 import { KernelManager, type ExecResult, type HostRequest } from '@deep-agent/kernel';
 import {
+  estimateTokens,
   messageTokens,
   messagesTokens,
   renderMessagePrefix,
@@ -21,6 +22,7 @@ import { EventBus } from './events.js';
 import { SkillsRegistry } from './skills.js';
 import { SessionStore } from './store.js';
 import { systemPrompt } from './system-prompt.js';
+import { Wallet } from './wallet.js';
 
 export interface SessionDeps {
   store: SessionStore;
@@ -30,6 +32,8 @@ export interface SessionDeps {
   /** Client factory, given the session role (root or child) and model. */
   createClient: (ctx: { role: SessionRole; model: string }) => LlmClient;
   host: SessionHost;
+  /** Host-global cost accounting (sovereign-agent ticket 03). */
+  wallet: Wallet;
 }
 
 /** Capabilities the session delegates upward to the manager. */
@@ -237,6 +241,28 @@ export class AgentSession {
     this.setStatus('running');
     this.deps.events.emit({ type: 'turn_start', sessionId: this.id, turnId });
     this.abort = new AbortController();
+
+    // Wallet gate (ticket 03): no balance, no model calls.
+    if (!this.deps.wallet.canRunTurn()) {
+      if (this.meta.goal && this.meta.goal.status === 'active') {
+        this.meta.goal.status = 'blocked';
+        this.meta.goal.blockedReason = 'budget exhausted';
+        this.meta.goal.updatedAt = new Date().toISOString();
+        this.persistGoal();
+        this.deps.events.emit({
+          type: 'goal_updated',
+          sessionId: this.id,
+          goal: this.meta.goal,
+        });
+      }
+      this.append({
+        kind: 'message',
+        role: 'system',
+        content: 'Budget exhausted: the wallet has no remaining balance. Top up the budget to continue.',
+      });
+      return this.finishTurn(turnId, 'Budget exhausted: top up the wallet to continue.', null);
+    }
+
     const client = this.deps.createClient({ role: this.meta.role, model: this.meta.model });
 
     let finalText = '';
@@ -455,6 +481,7 @@ export class AgentSession {
     signal: AbortSignal,
   ): Promise<ChatMessage> {
     let content = '';
+    let usage: LlmUsage | undefined;
     const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
     for await (const chunk of client.streamChat(
       messages,
@@ -487,6 +514,7 @@ export class AgentSession {
           break;
         }
         case 'done':
+          usage = chunk.usage;
           break;
         case 'error':
           throw new Error(chunk.message);
@@ -499,6 +527,15 @@ export class AgentSession {
         type: 'function' as const,
         function: { name: call.name, arguments: call.arguments },
       }));
+    // Charge the wallet with provider-reported usage when available, token
+    // estimates otherwise (ticket 03). A missing rate throws — uncounted
+    // spend must fail loud rather than proceed silently.
+    this.deps.wallet.charge(
+      this.id,
+      this.meta.model,
+      usage?.promptTokens ?? messagesTokens(messages),
+      usage?.completionTokens ?? estimateTokens(content),
+    );
     return {
       role: 'assistant',
       content: content === '' ? null : content,
