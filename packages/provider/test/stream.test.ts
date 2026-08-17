@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import {
   MockLlmClient,
   OpenAICompatibleClient,
@@ -44,7 +45,7 @@ beforeAll(async () => {
     return lines;
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
-  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  baseUrl = `http://127.0.0.1:${fromAny<AddressInfo>(server.address()).port}`;
 });
 
 afterAll(() => void server.close());
@@ -70,7 +71,7 @@ describe('OpenAICompatibleClient', () => {
   it('surfaces provider errors as thrown errors', async () => {
     const server2 = sseServer(() => ['data: {"error":{"message":"boom"}}\n\n']);
     await new Promise<void>((resolve) => server2.listen(0, resolve));
-    const url = `http://127.0.0.1:${(server2.address() as AddressInfo).port}`;
+    const url = `http://127.0.0.1:${fromAny<AddressInfo>(server2.address()).port}`;
     try {
       const client = new OpenAICompatibleClient({ baseUrl: url, model: 'm' });
       await expect(
@@ -87,7 +88,7 @@ describe('OpenAICompatibleClient', () => {
       res.end('bad key');
     });
     await new Promise<void>((resolve) => server2.listen(0, resolve));
-    const url = `http://127.0.0.1:${(server2.address() as AddressInfo).port}`;
+    const url = `http://127.0.0.1:${fromAny<AddressInfo>(server2.address()).port}`;
     try {
       const client = new OpenAICompatibleClient({ baseUrl: url, model: 'm' });
       await expect(
@@ -112,7 +113,7 @@ describe('OpenAICompatibleClient', () => {
       );
     });
     await new Promise<void>((resolve) => server2.listen(0, resolve));
-    const url = `http://127.0.0.1:${(server2.address() as AddressInfo).port}/v1`;
+    const url = `http://127.0.0.1:${fromAny<AddressInfo>(server2.address()).port}/v1`;
     try {
       const client = new OpenAICompatibleClient({ baseUrl: url, model: 'm' });
       await expect(client.listModels()).resolves.toEqual([
@@ -129,7 +130,7 @@ describe('OpenAICompatibleClient', () => {
       `data: ${JSON.stringify({ choices: [{ delta: { content: 'bare' } }] })}\n\n`,
     ]);
     await new Promise<void>((resolve) => server2.listen(0, resolve));
-    const url = `http://127.0.0.1:${(server2.address() as AddressInfo).port}`;
+    const url = `http://127.0.0.1:${fromAny<AddressInfo>(server2.address()).port}`;
     try {
       const client = new OpenAICompatibleClient({ baseUrl: url, model: 'm' });
       const result = await collectAssistantMessage(client, [{ role: 'user', content: 'x' }]);

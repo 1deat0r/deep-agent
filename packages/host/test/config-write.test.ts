@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../src/config.js';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import {
   ConfigWriteError,
   configFileBase,
@@ -33,7 +34,7 @@ describe('mergeProviderSettings', () => {
       temperature: 0.3,
     });
     // the input config is not mutated
-    expect(base.provider.model).toBe('deepseek-v4-flash');
+    expect(base.provider.model).toBe('deepseek-v4-pro');
     // non-provider fields are preserved
     expect(config.port).toBe(3824);
   });
@@ -41,7 +42,7 @@ describe('mergeProviderSettings', () => {
   it('reports changed=false and leaves the config untouched for identical input', () => {
     const base = baseConfig();
     base.provider.apiKey = 'sk-existing';
-    const { config, changed } = mergeProviderSettings(base, { model: 'deepseek-v4-flash' });
+    const { config, changed } = mergeProviderSettings(base, { model: 'deepseek-v4-pro' });
     expect(changed).toBe(false);
     expect(config.provider).toEqual(base.provider);
   });
@@ -84,7 +85,7 @@ describe('mergeProviderSettings', () => {
     try {
       mergeProviderSettings(base, { apiKey: '' });
     } catch (error) {
-      expect((error as ConfigWriteError).field).toBe('apiKey');
+      expect(fromAny<ConfigWriteError>(error).field).toBe('apiKey');
     }
   });
 
@@ -121,7 +122,7 @@ describe('mergeProviderSettings', () => {
     try {
       mergeProviderSettings(baseConfig(), { id: 'anthropic' });
     } catch (error) {
-      expect((error as ConfigWriteError).field).toBe('id');
+      expect(fromAny<ConfigWriteError>(error).field).toBe('id');
     }
   });
 
@@ -131,7 +132,7 @@ describe('mergeProviderSettings', () => {
       try {
         mergeProviderSettings(baseConfig(), { model });
       } catch (error) {
-        expect((error as ConfigWriteError).field).toBe('model');
+        expect(fromAny<ConfigWriteError>(error).field).toBe('model');
       }
     }
   });
@@ -142,7 +143,7 @@ describe('mergeProviderSettings', () => {
       try {
         mergeProviderSettings(baseConfig(), { baseUrl });
       } catch (error) {
-        expect((error as ConfigWriteError).field).toBe('baseUrl');
+        expect(fromAny<ConfigWriteError>(error).field).toBe('baseUrl');
       }
     }
   });
@@ -152,7 +153,7 @@ describe('mergeProviderSettings', () => {
     try {
       mergeProviderSettings(baseConfig(), { apiKey: 123 });
     } catch (error) {
-      expect((error as ConfigWriteError).field).toBe('apiKey');
+      expect(fromAny<ConfigWriteError>(error).field).toBe('apiKey');
     }
   });
 
