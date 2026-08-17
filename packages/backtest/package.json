@@ -1,0 +1,17 @@
+{
+  "name": "@deep-agent/backtest",
+  "version": "0.1.0",
+  "description": "Backtest engine for the sovereign agent's paper-trading gate: lookahead-proof strategy interface, cost-aware simulation, benchmarked metrics",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+  }
+}
