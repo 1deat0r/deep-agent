@@ -29,6 +29,10 @@ that its own costs are covered.
   trading, writing); moving or risking real money is never agent-only.
 - **Scope (user, 2026-08-17): the agent researches and proposes 3 concrete
   business models; the user picks one before any real money moves.**
+- **01 — Business model (user, 2026-08-17): Model 1 (contract software
+  delivery) runs now with its dry-run gate; Model 3 (algo-trading) runs paper
+  in parallel behind its backtest + 30–60-day paper gate; Model 2 shelved.**
+  → `issues/01-business-models.md`, `research/business-models.md`.
 - **02 — Sovereign goal mode: per-goal flag.** `sovereign: true` on goal
   creation; the goal never pauses on user messages (they append to the
   transcript and are answered at the next round boundary); heartbeat re-entry
@@ -47,7 +51,8 @@ that its own costs are covered.
 
 ## Not yet specified
 
-- The business model to run — waits on ticket 01's research.
+- Model 1 dry-run plan (ticket 05) and Model 3 paper infrastructure
+  (ticket 06) — implementation tickets for the chosen models.
 
 ## Out of scope
 
