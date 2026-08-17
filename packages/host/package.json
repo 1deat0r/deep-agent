@@ -22,5 +22,8 @@
     "@deep-agent/kernel": "workspace:*",
     "@deep-agent/provider": "workspace:*",
     "js-tiktoken": "^1.0.21"
+  },
+  "devDependencies": {
+    "@total-typescript/shoehorn": "^0.1.2"
   }
 }

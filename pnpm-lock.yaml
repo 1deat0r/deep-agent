@@ -24,6 +24,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@24.13.3)(jiti@2.7.0)
 
+  packages/backtest: {}
+
   packages/cli:
     dependencies:
       '@deep-agent/host':
@@ -60,10 +62,18 @@ importers:
       js-tiktoken:
         specifier: ^1.0.21
         version: 1.0.21
+    devDependencies:
+      '@total-typescript/shoehorn':
+        specifier: ^0.1.2
+        version: 0.1.2
 
   packages/kernel: {}
 
-  packages/provider: {}
+  packages/provider:
+    devDependencies:
+      '@total-typescript/shoehorn':
+        specifier: ^0.1.2
+        version: 0.1.2
 
   packages/web:
     dependencies:
@@ -580,6 +590,9 @@ packages:
   '@szmarczak/http-timer@4.0.6':
     resolution: {integrity: sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w==}
     engines: {node: '>=10'}
+
+  '@total-typescript/shoehorn@0.1.2':
+    resolution: {integrity: sha512-p7nNZbOZIofpDNyP0u1BctFbjxD44Qc+oO5jufgQdFdGIXJLc33QRloJpq7k5T59CTgLWfQSUxsuqLcmeurYRw==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -2286,6 +2299,8 @@ snapshots:
   '@szmarczak/http-timer@4.0.6':
     dependencies:
       defer-to-connect: 2.0.1
+
+  '@total-typescript/shoehorn@0.1.2': {}
 
   '@types/babel__core@7.20.5':
     dependencies:
