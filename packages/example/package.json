@@ -1,0 +1,14 @@
+{
+  "name": "@deep-agent/example",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Copy-me template for a deep-agent package: entry points at the src/ root, implementation in subfolders, tests in test/",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@total-typescript/shoehorn": "^0.1.2"
+  }
+}

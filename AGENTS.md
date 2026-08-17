@@ -34,6 +34,10 @@ model surface before changing the loop.
    rebuilding LLM context on resume; messages and cells both live in it. If you
    add a step in `AgentSession.doRunTurn`, decide where it lands in the
    transcript before implementing.
+5. **Packages are deep modules.** A package's entry points are the files
+   directly in its `src/`; anything in a subfolder is private, and tests import
+   only through entry points. Enforced by `pnpm lint:boundaries` (also in
+   `pnpm check`) — see [packages/README.md](packages/README.md).
 
 ## Cross-cutting changes checklist
 

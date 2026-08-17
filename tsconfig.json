@@ -1,0 +1,7 @@
+{
+  // Resolution shim for dependency-cruiser (lint:boundaries): maps
+  // @deep-agent/* imports to their source entry points via the base config's
+  // paths. No files are included, so nothing typechecks from the root.
+  "extends": "./tsconfig.base.json",
+  "files": []
+}

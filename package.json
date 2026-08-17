@@ -16,12 +16,15 @@
     "test:python": "PYTHONPATH=python python3 -m unittest discover python/deep_agent_runtime -v",
     "dev": "pnpm --filter @deep-agent/cli build && node packages/cli/dist/bin/deep-agent.js serve",
     "dev:web": "pnpm --filter @deep-agent/web dev",
-    "demo": "pnpm build && node --experimental-strip-types examples/demo.ts"
+    "demo": "pnpm build && node --experimental-strip-types examples/demo.ts",
+    "lint:boundaries": "depcruise packages",
+    "check": "pnpm lint:boundaries && pnpm -r typecheck"
   },
   "devDependencies": {
     "@deep-agent/host": "workspace:*",
     "@deep-agent/provider": "workspace:*",
     "@types/node": "^24.0.0",
+    "dependency-cruiser": "^18.2.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"
   }
