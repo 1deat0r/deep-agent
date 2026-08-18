@@ -13,6 +13,7 @@ pub struct AppState {
     pub detail: Option<api::SessionDetail>,
     pub models: Vec<String>,
     pub draft: String,
+    pub caret: usize,
     pub streaming: bool,
     pub busy: bool,
     pub toast: Option<String>,
@@ -28,6 +29,7 @@ impl AppState {
             detail: None,
             models: Vec::new(),
             draft: String::new(),
+            caret: 0,
             streaming: false,
             busy: false,
             toast: None,
@@ -48,7 +50,14 @@ impl AppState {
             match result {
                 Ok(sessions) => {
                     this.update(&mut async_cx.clone(), |this, cx| {
+                        let mut first_id: Option<String> = None;
                         this.sessions = sessions;
+                        if this.selected_id.is_none() && !this.sessions.is_empty() {
+                            first_id = this.sessions.first().map(|m| m.id.clone());
+                        }
+                        if let Some(id) = first_id {
+                            this.select(id, cx);
+                        }
                         cx.notify();
                     })
                     .ok();
@@ -96,6 +105,7 @@ impl AppState {
         self.selected_id = Some(id.clone());
         self.detail = None;
         self.draft.clear();
+        self.caret = 0;
         self.streaming = false;
         self.load_detail(id.clone(), cx);
         self.open_event_stream(id, cx);
@@ -137,15 +147,36 @@ impl AppState {
         let stream_tx = tx.clone();
         let async_cx = cx.to_async();
         let drain_cx = async_cx.clone();
-        cx.spawn(move |_this: WeakEntity<Self>, _cx: &mut AsyncApp| async move {
-            let _ = async_cx
-                .background_executor()
-                .spawn(async move {
-                    let _ = client.stream_events(&id, move |event| {
-                        let _ = stream_tx.try_send(event);
-                    });
-                })
-                .await;
+        // Producer: keep the session's event stream open; on end (host
+        // restart, network blip), back off and reconnect while the session is
+        // still selected.
+        let mut producer_cx = async_cx.clone();
+        cx.spawn(move |this: WeakEntity<Self>, _cx: &mut AsyncApp| async move {
+            let mut backoff = std::time::Duration::from_secs(1);
+            loop {
+                let still_selected = this
+                    .update(&mut producer_cx, |this, _cx| {
+                        this.selected_id.as_deref() == Some(id.as_str())
+                    })
+                    .unwrap_or(false);
+                if !still_selected {
+                    break;
+                }
+                let stream_tx = stream_tx.clone();
+                let stream_id = id.clone();
+                let stream_client = client.clone();
+                let stream_cx = producer_cx.clone();
+                let _ = stream_cx
+                    .background_executor()
+                    .spawn(async move {
+                        let _ = stream_client.stream_events(&stream_id, move |event| {
+                            let _ = stream_tx.try_send(event);
+                        });
+                    })
+                    .await;
+                smol::Timer::after(backoff).await;
+                backoff = (backoff * 2).min(std::time::Duration::from_secs(8));
+            }
         })
         .detach();
 
@@ -173,6 +204,7 @@ impl AppState {
             }
             HostEvent::TurnStart { .. } => {
                 self.draft.clear();
+                self.caret = 0;
                 self.streaming = true;
             }
             HostEvent::MessageDelta { delta, .. } => {
@@ -190,6 +222,7 @@ impl AppState {
                     detail.transcript.push(entry);
                 }
                 self.draft.clear();
+                self.caret = 0;
                 self.streaming = false;
             }
             HostEvent::CellResult { cell, .. } => {
@@ -228,6 +261,7 @@ impl AppState {
             return;
         };
         self.draft.clear();
+        self.caret = 0;
         self.busy = true;
         let client = self.client.clone();
         let async_cx = cx.to_async();
@@ -395,6 +429,16 @@ impl AppState {
 
     fn fail(&mut self, message: &str, cx: &mut Context<Self>) {
         self.toast = Some(message.to_string());
+        let mut async_cx = cx.to_async();
+        cx.spawn(move |this: WeakEntity<Self>, _cx: &mut AsyncApp| async move {
+            smol::Timer::after(std::time::Duration::from_secs(6)).await;
+            this.update(&mut async_cx, |this, cx| {
+                this.toast = None;
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
         cx.notify();
     }
 }
@@ -464,6 +508,84 @@ pub fn next_reasoning_level(current: &str) -> String {
         .position(|l| *l == current)
         .unwrap_or(0);
     REASONING_LEVELS[(pos + 1) % REASONING_LEVELS.len()].to_string()
+}
+
+/// What an input keystroke asked for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputAction {
+    None,
+    Send,
+}
+
+/// Apply one editor keystroke to the composer draft at `caret` (char index).
+/// Streaming blocks edits, matching the web composer's disabled state.
+pub fn apply_input_edit(
+    draft: &mut String,
+    caret: &mut usize,
+    key: &str,
+    key_char: Option<&str>,
+    shift: bool,
+    streaming: bool,
+) -> InputAction {
+    if streaming {
+        return InputAction::None;
+    }
+    let len = draft.chars().count();
+    *caret = (*caret).min(len);
+    match key {
+        "enter" => {
+            if shift {
+                insert_at(draft, caret, '\n');
+            } else {
+                return InputAction::Send;
+            }
+        }
+        "backspace" => {
+            if *caret > 0 {
+                remove_before(draft, caret);
+            }
+        }
+        "delete" => {
+            if *caret < len {
+                remove_at(draft, caret);
+            }
+        }
+        "space" => insert_at(draft, caret, ' '),
+        "tab" => insert_at(draft, caret, '\t'),
+        "left" => *caret = caret.saturating_sub(1),
+        "right" => *caret = (*caret + 1).min(len),
+        "home" => *caret = 0,
+        "end" => *caret = len,
+        _ => {
+            if let Some(c) = key_char {
+                for ch in c.chars() {
+                    insert_at(draft, caret, ch);
+                }
+            }
+        }
+    }
+    InputAction::None
+}
+
+fn char_byte_index(s: &str, n: usize) -> usize {
+    s.char_indices().nth(n).map(|(i, _)| i).unwrap_or(s.len())
+}
+
+fn insert_at(s: &mut String, caret: &mut usize, c: char) {
+    let byte = char_byte_index(s, *caret);
+    s.insert(byte, c);
+    *caret += 1;
+}
+
+fn remove_at(s: &mut String, caret: &mut usize) {
+    let byte = char_byte_index(s, *caret);
+    s.remove(byte);
+}
+
+fn remove_before(s: &mut String, caret: &mut usize) {
+    *caret -= 1;
+    let byte = char_byte_index(s, *caret);
+    s.remove(byte);
 }
 
 pub fn format_tokens(n: f64) -> String {

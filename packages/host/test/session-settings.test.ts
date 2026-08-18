@@ -128,3 +128,33 @@ describe('session settings route', () => {
     expect(emptyModel.status).toBe(400);
   });
 });
+
+describe('models route', () => {
+  it('offers only models the wallet can meter', async () => {
+    const { host } = makeHost();
+    // Rebuild the factory client to list an unrated model alongside rated ones.
+    const port = await startServer(host);
+    const base = `http://127.0.0.1:${port}`;
+    // The shared mock factory lists only mock-model; override via a fresh host.
+    void base;
+    const config = loadConfig({
+      ...DEFAULT_CONFIG,
+      dataDir,
+      port: 0,
+      provider: { id: 'mock' as const, model: 'mock-model' },
+    });
+    const customHost = createHost(config, () => ({
+      id: 'mock',
+      listModels: async () => ['deepseek-v4-pro', 'unrated-model'],
+      async *streamChat() {
+        yield { type: 'done' as const, finishReason: 'stop' };
+      },
+    }));
+    hosts.push(customHost);
+    const { port: customPort } = await customHost.server.start();
+    const models = (await (
+      await fetch(`http://127.0.0.1:${customPort}/api/models`)
+    ).json()) as { models: string[] };
+    expect(models.models).toEqual(['deepseek-v4-pro']);
+  });
+});

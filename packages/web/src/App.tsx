@@ -204,6 +204,10 @@ export function App(): JSX.Element {
     try {
       const res = await getSessions();
       setSessions(res.sessions);
+      // Auto-select the most recent session once, on first load.
+      setSelectedId((current) =>
+        current === null && res.sessions.length > 0 ? (res.sessions[0]?.id ?? null) : current,
+      );
     } catch (err) {
       pushToast('error', err instanceof Error ? err.message : String(err));
     } finally {

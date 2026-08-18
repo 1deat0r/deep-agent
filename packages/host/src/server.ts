@@ -156,8 +156,14 @@ export class HostServer {
     if (pathname === '/api/models' && req.method === 'GET') {
       try {
         const client = this.manager.createClient({ role: 'root', model: this.config.provider.model });
-        const models: ModelsResponse = { models: await client.listModels(), default: this.config.provider.model };
-        sendJson(res, 200, models);
+        // Only offer models the wallet can meter: selecting an unrated model
+        // would make the next turn fail loudly at charge time (ticket 03).
+        const rated = new Set(Object.keys(this.config.wallet.rates));
+        const listed = await client.listModels();
+        const models = listed.filter((model) => rated.has(model));
+        if (models.length === 0) models.push(this.config.provider.model);
+        const response: ModelsResponse = { models, default: this.config.provider.model };
+        sendJson(res, 200, response);
       } catch (error) {
         const models: ModelsResponse = {
           models: [this.config.provider.model],

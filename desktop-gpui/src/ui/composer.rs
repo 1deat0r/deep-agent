@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::state::{format_tokens, usage_totals, AppState};
+use crate::state::{apply_input_edit, format_tokens, usage_totals, AppState, InputAction};
 use crate::theme;
 
 pub fn composer(state: &AppState, window: &mut Window, cx: &mut Context<AppState>) -> Stateful<Div> {
@@ -22,6 +22,14 @@ pub fn composer(state: &AppState, window: &mut Window, cx: &mut Context<AppState
         .and_then(|d| d.meta.reasoning_effort.clone())
         .unwrap_or_else(|| String::from("auto"));
     let running = state.streaming || state.busy;
+    let has_session = state.detail.is_some();
+    let placeholder = if !has_session {
+        "Select a session to start…"
+    } else if running {
+        "Agent is running — interrupt to type…"
+    } else {
+        "Send a message…"
+    };
 
     div()
         .id("composer")
@@ -42,8 +50,9 @@ pub fn composer(state: &AppState, window: &mut Window, cx: &mut Context<AppState
                 .flex()
                 .flex_col()
                 .gap_2()
-                .child(
-                    div()
+                .children(
+                    has_session.then(|| {
+                        div()
                         .flex()
                         .items_center()
                         .gap_1p5()
@@ -62,7 +71,8 @@ pub fn composer(state: &AppState, window: &mut Window, cx: &mut Context<AppState
                             }),
                         ))
                         .child(div().flex_1().child(""))
-                        .child(usage_readout(session_totals, turn_totals)),
+                        .child(usage_readout(session_totals, turn_totals))
+                    }),
                 )
                 .child(
                     div()
@@ -84,17 +94,11 @@ pub fn composer(state: &AppState, window: &mut Window, cx: &mut Context<AppState
                         .tab_index(0)
                         .track_focus(&state.input_focus)
                         .child(if state.draft.is_empty() {
-                            div()
-                                .text_color(theme::TEXT_FAINT)
-                                .child(if running {
-                                    "Agent is running — interrupt to type…"
-                                } else {
-                                    "Send a message…"
-                                })
+                            div().text_color(theme::TEXT_FAINT).child(placeholder)
                         } else {
                             div()
                                 .whitespace_normal()
-                                .child(format!("{}▍", state.draft))
+                                .child(render_with_caret(&state.draft, state.caret))
                         })
                         .on_click(window.listener_for(&cx.entity(), |this, _event, window, _cx| {
                             window.focus(&this.input_focus);
@@ -219,33 +223,28 @@ fn action_button(
     }
 }
 
+fn render_with_caret(draft: &str, caret: usize) -> String {
+    let mut chars = draft.chars();
+    let head: String = chars.by_ref().take(caret).collect();
+    let tail: String = chars.collect();
+    format!("{head}▍{tail}")
+}
+
 fn handle_input_key(state: &mut AppState, event: &KeyDownEvent, cx: &mut Context<AppState>) {
     let keystroke = &event.keystroke;
     if keystroke.modifiers.platform || keystroke.modifiers.control || keystroke.modifiers.alt {
         return;
     }
-    match keystroke.key.as_str() {
-        "enter" => {
-            if keystroke.modifiers.shift {
-                state.draft.push('\n');
-            } else {
-                state.send(cx);
-            }
-        }
-        "backspace" => {
-            state.draft.pop();
-        }
-        "space" => {
-            state.draft.push(' ');
-        }
-        "tab" => {
-            state.draft.push_str("    ");
-        }
-        _ => {
-            if let Some(c) = &keystroke.key_char {
-                state.draft.push_str(c);
-            }
-        }
+    let action = apply_input_edit(
+        &mut state.draft,
+        &mut state.caret,
+        &keystroke.key,
+        keystroke.key_char.as_deref(),
+        keystroke.modifiers.shift,
+        state.streaming,
+    );
+    if action == InputAction::Send {
+        state.send(cx);
     }
     cx.notify();
 }

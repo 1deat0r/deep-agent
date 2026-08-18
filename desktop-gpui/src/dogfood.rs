@@ -12,7 +12,8 @@ use gpui::*;
 
 use crate::api::{self, Client, HostEvent, TranscriptEntry};
 use crate::state::{
-    format_tokens, next_reasoning_level, usage_totals, AppState, REASONING_LEVELS,
+    apply_input_edit, format_tokens, next_reasoning_level, usage_totals, AppState, InputAction,
+    REASONING_LEVELS,
 };
 
 // ---------------------------------------------------------------------------
@@ -254,6 +255,59 @@ fn reasoning_cycle_matches_deepseek_v4_levels() {
     assert_eq!(REASONING_LEVELS, &["auto", "low", "high", "max"]);
 }
 
+#[core::prelude::v1::test]
+fn input_editing_moves_caret_and_edits() {
+    let mut draft = String::from("abc");
+    let mut caret = 3usize;
+    apply_input_edit(&mut draft, &mut caret, "left", None, false, false);
+    assert_eq!(draft, "abc");
+    assert_eq!(caret, 2);
+    apply_input_edit(&mut draft, &mut caret, "backspace", None, false, false);
+    assert_eq!(draft, "ac");
+    assert_eq!(caret, 1);
+    apply_input_edit(&mut draft, &mut caret, "x", Some("x"), false, false);
+    assert_eq!(draft, "axc");
+    assert_eq!(caret, 2);
+    apply_input_edit(&mut draft, &mut caret, "home", None, false, false);
+    assert_eq!(caret, 0);
+    apply_input_edit(&mut draft, &mut caret, "delete", None, false, false);
+    assert_eq!(draft, "xc");
+    apply_input_edit(&mut draft, &mut caret, "end", None, false, false);
+    assert_eq!(caret, 2);
+}
+
+#[core::prelude::v1::test]
+fn input_editing_enter_send_and_streaming_guard() {
+    let mut draft = String::from("hi");
+    let mut caret = 2usize;
+    assert_eq!(
+        apply_input_edit(&mut draft, &mut caret, "enter", None, true, false),
+        InputAction::None
+    );
+    assert_eq!(draft, "hi\n");
+    assert_eq!(
+        apply_input_edit(&mut draft, &mut caret, "enter", None, false, false),
+        InputAction::Send
+    );
+    // streaming blocks edits entirely
+    assert_eq!(
+        apply_input_edit(&mut draft, &mut caret, "z", Some("z"), false, true),
+        InputAction::None
+    );
+    assert_eq!(draft, "hi\n");
+}
+
+#[core::prelude::v1::test]
+fn input_editing_is_unicode_safe() {
+    let mut draft = String::from("héllo");
+    let mut caret = 5;
+    apply_input_edit(&mut draft, &mut caret, "left", None, false, false);
+    apply_input_edit(&mut draft, &mut caret, "left", None, false, false);
+    apply_input_edit(&mut draft, &mut caret, "中", Some("中"), false, false);
+    assert_eq!(draft, "hél中lo");
+    assert_eq!(caret, 4);
+}
+
 // ---------------------------------------------------------------------------
 // Real HTTP/SSE client against the canned server
 // ---------------------------------------------------------------------------
@@ -374,10 +428,18 @@ fn app_state_loads_sessions_from_host() {
     }
     let loaded = cx.read(|app| {
         let state = state.read(app);
-        (state.sessions.len(), state.models.clone())
+        (
+            state.sessions.len(),
+            state.models.clone(),
+            state.selected_id.clone(),
+            state.detail.is_some(),
+        )
     });
     assert_eq!(loaded.0, 1);
     assert_eq!(loaded.1, vec!["deepseek-v4-flash", "deepseek-v4-pro"]);
+    // auto-selects the most recent session and loads its detail
+    assert_eq!(loaded.2.as_deref(), Some("test-session-1"));
+    assert!(loaded.3, "detail loads for the auto-selected session");
 }
 
 #[core::prelude::v1::test]
@@ -562,4 +624,54 @@ fn clicking_model_pill_cycles_model_and_calls_settings() {
         m == "POST" && p.ends_with("/settings") && b.contains("deepseek-v4-pro")
     });
     assert!(done, "pill click called settings with the next model");
+}
+
+#[core::prelude::v1::test]
+fn event_stream_reconnects_after_the_host_drops_it() {
+    let mut routes = HashMap::new();
+    routes.insert(
+        "GET /api/sessions/test-session-1/events".to_string(),
+        "data: {\"type\":\"turn_start\",\"sessionId\":\"test-session-1\",\"turnId\":\"t1\"}\n\n".to_string(),
+    );
+    routes.insert(
+        "GET /api/sessions/test-session-1".to_string(),
+        format!(
+            r#"{{"meta":{},"transcript":[],"children":[]}}"#,
+            session_meta("a", None)
+        ),
+    );
+    let server = CannedServer::new(routes);
+    let client = Client::new(server.base());
+    let mut cx = TestAppContext::single();
+    cx.executor().allow_parking();
+    let state = cx.new(|cx| {
+        let state = AppState::new(client, cx);
+        state.init(cx);
+        state
+    });
+    cx.update(|app| {
+        state.update(app, |state, cx| {
+            state.selected_id = Some("test-session-1".into());
+            state.open_event_stream("test-session-1".into(), cx);
+        })
+    });
+
+    // The first stream ends immediately; the producer must reconnect. Poll
+    // until the server has seen at least two /events connections.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        cx.run_until_parked();
+        let hits = server
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(m, p, _)| m == "GET" && p.ends_with("/events"))
+            .count();
+        if hits >= 2 || std::time::Instant::now() > deadline {
+            assert!(hits >= 2, "event stream reconnected after the host dropped it (hits={hits})");
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(30));
+    }
 }
