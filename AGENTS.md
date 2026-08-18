@@ -11,6 +11,10 @@ model surface before changing the loop.
 ## Layout and commands
 
 - Workspace packages: `packages/{provider,kernel,host,web,cli}` (pnpm).
+- `desktop-gpui/` — native Rust desktop client on GPUI (Zed's UI framework,
+  crate `deep-agent-gpui`). Talks to the host over HTTP+SSE; `cargo run` from
+  its directory. See `desktop-gpui/README.md` for the GPUI 0.2.2 gotchas
+  (foreground executor, Stateful chains, non-Send AsyncApp).
 - Kernel runtime: `python/deep_agent_runtime/` — pure stdlib, no install needed.
 - Build: `pnpm build` · Typecheck: `pnpm -r typecheck` · TS tests: `pnpm test`
   (vitest, aliases resolve workspace deps to `src/`).
