@@ -1,0 +1,17 @@
+[package]
+name = "deep-agent-gpui"
+version = "0.1.0"
+edition = "2021"
+description = "GPUI desktop client for deep-agent: a DeepSeek-Harness-style chat UI on Zed's GPU-accelerated UI framework"
+
+[dependencies]
+gpui = "0.2.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+ureq = { version = "3", features = ["rustls", "json"] }
+smol = "2"
+
+[profile.dev]
+# gpui debug builds are unusably slow; opt deps, keep our crate debuggable
+opt-level = 1
