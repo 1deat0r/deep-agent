@@ -1,4 +1,6 @@
 mod api;
+#[cfg(test)]
+mod dogfood;
 mod state;
 mod theme;
 mod ui;

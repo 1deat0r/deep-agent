@@ -37,7 +37,7 @@ export interface SessionMeta {
   createdAt: string;
   updatedAt: string;
   childIds: string[];
-  reasoningEffort?: 'low' | 'medium' | 'high';
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'max';
   goal: GoalState | null;
   autoContinue: boolean;
   /** Markdown summary of the latest completed turn, if any. */

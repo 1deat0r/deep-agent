@@ -326,7 +326,6 @@ impl AppState {
     }
 
     pub fn cycle_reasoning(&mut self, cx: &mut Context<Self>) {
-        const LEVELS: &[&str] = &["auto", "low", "medium", "high"];
         let Some(id) = self.selected_id.clone() else {
             return;
         };
@@ -335,8 +334,7 @@ impl AppState {
             .as_ref()
             .and_then(|d| d.meta.reasoning_effort.clone())
             .unwrap_or_else(|| String::from("auto"));
-        let pos = LEVELS.iter().position(|l| *l == current).unwrap_or(0);
-        let next = LEVELS[(pos + 1) % LEVELS.len()];
+        let next = next_reasoning_level(&current);
         let client = self.client.clone();
         let next = next.to_string();
         let id_for_call = id.clone();
@@ -453,6 +451,19 @@ impl Totals {
             None
         }
     }
+}
+
+/// DeepSeek v4's real reasoning tiers (low/high/max; medium aliases high).
+/// "auto" means the field is omitted from the request — the provider default.
+pub const REASONING_LEVELS: &[&str] = &["auto", "low", "high", "max"];
+
+/// Next level in the pill cycle, wrapping after the last.
+pub fn next_reasoning_level(current: &str) -> String {
+    let pos = REASONING_LEVELS
+        .iter()
+        .position(|l| *l == current)
+        .unwrap_or(0);
+    REASONING_LEVELS[(pos + 1) % REASONING_LEVELS.len()].to_string()
 }
 
 pub fn format_tokens(n: f64) -> String {

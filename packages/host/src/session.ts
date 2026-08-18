@@ -576,7 +576,7 @@ export class AgentSession {
    */
   setSettings(settings: {
     model: string | undefined;
-    reasoningEffort: 'low' | 'medium' | 'high' | 'auto' | undefined;
+    reasoningEffort: 'low' | 'medium' | 'high' | 'max' | 'auto' | undefined;
   }): void {
     if (settings.model !== undefined) this.meta.model = settings.model;
     if (settings.reasoningEffort !== undefined) {

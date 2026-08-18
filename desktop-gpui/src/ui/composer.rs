@@ -67,6 +67,7 @@ pub fn composer(state: &AppState, window: &mut Window, cx: &mut Context<AppState
                 .child(
                     div()
                         .id("composer-input")
+                        .debug_selector(|| "composer-input".to_string())
                         .w_full()
                         .bg(theme::BG_BASE)
                         .rounded_lg()
@@ -154,6 +155,7 @@ fn cycle_pill(
 ) -> Stateful<Div> {
     div()
         .id(id)
+        .debug_selector(move || id.to_string())
         .text_color(theme::TEXT_MUTED)
         .text_size(rems(0.75))
         .px_2()

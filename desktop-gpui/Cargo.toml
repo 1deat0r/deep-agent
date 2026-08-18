@@ -12,6 +12,9 @@ anyhow = "1"
 ureq = { version = "3", features = ["rustls", "json"] }
 smol = "2"
 
+[dev-dependencies]
+gpui = { version = "0.2.2", features = ["test-support"] }
+
 [profile.dev]
 # gpui debug builds are unusably slow; opt deps, keep our crate debuggable
 opt-level = 1

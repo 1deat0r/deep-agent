@@ -316,13 +316,13 @@ export class HostServer {
         sendJson(res, 400, { error: 'model must be a non-empty string' });
         return;
       }
-      const effortValues = ['low', 'medium', 'high', 'auto'];
+      const effortValues = ['low', 'medium', 'high', 'max', 'auto'];
       const reasoningEffort =
         typeof body.reasoningEffort === 'string' && effortValues.includes(body.reasoningEffort)
-          ? (body.reasoningEffort as 'low' | 'medium' | 'high' | 'auto')
+          ? (body.reasoningEffort as 'low' | 'medium' | 'high' | 'max' | 'auto')
           : undefined;
       if (body.reasoningEffort !== undefined && reasoningEffort === undefined) {
-        sendJson(res, 400, { error: 'reasoningEffort must be low, medium, high, or auto' });
+        sendJson(res, 400, { error: 'reasoningEffort must be low, medium, high, max, or auto' });
         return;
       }
       session.setSettings({ model, reasoningEffort });

@@ -51,11 +51,11 @@ export interface LlmRequestOptions {
   /** Extra headers merged over defaults (e.g. per-request overrides). */
   headers?: Record<string, string>;
   /**
-   * Explicit reasoning effort (OpenAI o-series and DeepSeek reasoning
-   * models). Sent as `reasoning_effort` in the request body only when set,
-   * so providers that don't support it never see the field.
+   * Explicit reasoning effort (DeepSeek v4: low/high/max; OpenAI o-series:
+   * minimal/low/medium/high). Sent as `reasoning_effort` in the request body
+   * only when set, so providers that don't support it never see the field.
    */
-  reasoningEffort?: 'low' | 'medium' | 'high';
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'max';
 }
 
 export interface LlmClient {

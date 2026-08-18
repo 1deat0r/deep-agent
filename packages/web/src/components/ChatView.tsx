@@ -167,8 +167,8 @@ function ComposerMeta(props: ComposerMetaProps): JSX.Element {
       >
         <option value="auto">auto</option>
         <option value="low">low</option>
-        <option value="medium">medium</option>
         <option value="high">high</option>
+        <option value="max">max</option>
       </select>
       {showUsage && (
         <span

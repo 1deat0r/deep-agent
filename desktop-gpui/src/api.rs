@@ -137,7 +137,7 @@ pub struct ModelsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum HostEvent {
     Status { session_id: String, status: String },
     TurnStart { session_id: String, turn_id: String },

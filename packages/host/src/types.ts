@@ -37,7 +37,7 @@ export interface SessionMeta {
   updatedAt: string;
   childIds: string[];
   /** Explicit reasoning effort for model calls; unset = provider default. */
-  reasoningEffort?: 'low' | 'medium' | 'high';
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'max';
   goal: GoalState | null;
   autoContinue: boolean;
   /** Markdown summary of the latest completed turn, if any. */
